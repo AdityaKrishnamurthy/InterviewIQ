@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 const PERSONAS_LIST = [
@@ -118,9 +118,9 @@ const InterviewSession = () => {
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
       {/* Header Navbar */}
       <header className="navbar">
-        <div className="auth-brand" style={{ marginBottom: 0 }}>
+        <Link to="/dashboard" className="auth-brand" style={{ marginBottom: 0 }}>
           Interview<span>IQ</span>
-        </div>
+        </Link>
         <div className="nav-user">
           <button onClick={() => navigate('/resume')} className="btn btn-secondary">
             Resume Specs

@@ -87,6 +87,14 @@ a:hover {
   font-weight: 700;
   color: var(--text-primary);
   margin-bottom: 0.5rem;
+  text-decoration: none;
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+}
+
+.auth-brand:hover {
+  color: var(--text-primary);
+  opacity: 0.9;
 }
 
 .auth-brand span {

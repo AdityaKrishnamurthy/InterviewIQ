@@ -1,6 +1,6 @@
 import React from 'react';
 import { useAuth } from '../context/AuthContext';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 
 const Dashboard = () => {
   const { user, logout } = useAuth();
@@ -9,9 +9,9 @@ const Dashboard = () => {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
       <header className="navbar">
-        <div className="auth-brand" style={{ marginBottom: 0 }}>
+        <Link to="/dashboard" className="auth-brand" style={{ marginBottom: 0 }}>
           Interview<span>IQ</span>
-        </div>
+        </Link>
         <div className="nav-user">
           <span className="nav-user-name">Welcome, {user?.name || 'Candidate'}</span>
           <button onClick={logout} className="btn btn-secondary">

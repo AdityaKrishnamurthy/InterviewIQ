@@ -38,9 +38,9 @@ const Login = () => {
     <div className="auth-container">
       <div className="auth-card">
         <div className="auth-header">
-          <div className="auth-brand">
+          <Link to="/" className="auth-brand">
             Interview<span>IQ</span>
-          </div>
+          </Link>
           <h1 className="auth-title">Welcome Back</h1>
           <p className="auth-subtitle">Sign in to continue your technical interview prep</p>
         </div>

@@ -47,9 +47,9 @@ const Register = () => {
     <div className="auth-container">
       <div className="auth-card">
         <div className="auth-header">
-          <div className="auth-brand">
+          <Link to="/" className="auth-brand">
             Interview<span>IQ</span>
-          </div>
+          </Link>
           <h1 className="auth-title">Create Account</h1>
           <p className="auth-subtitle">Start your adaptive AI technical interview session</p>
         </div>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 const ScoreRing = ({ score }) => {
@@ -150,9 +150,9 @@ const FinalReport = () => {
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
       {/* Header */}
       <header className="navbar no-print">
-        <div className="auth-brand" style={{ marginBottom: 0 }}>
+        <Link to="/dashboard" className="auth-brand" style={{ marginBottom: 0 }}>
           Interview<span>IQ</span>
-        </div>
+        </Link>
         <div className="nav-user">
           <button onClick={handlePrint} className="btn btn-secondary">
             🖨️ Export PDF
