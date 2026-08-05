@@ -21,6 +21,3 @@ InterviewIQ simulates a real technical interview. It reads your resume, tracks h
 | Auth | JWT |
 | AI | Gemini API |
 
-## Project Status
-This project is being built plan-by-plan. See [`plans/PLANS.md`](plans/PLANS.md) for the current status.
-
