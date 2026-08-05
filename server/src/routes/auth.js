@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const User = require('../models/User');
+const { userStore } = require('../db');
 const authMiddleware = require('../middleware/auth');
 
 // @route   POST /api/auth/register
@@ -20,7 +20,7 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ message: 'Password must be at least 6 characters' });
     }
 
-    let user = await User.findOne({ email: email.toLowerCase() });
+    let user = await userStore.findByEmail(email);
     if (user) {
       return res.status(400).json({ message: 'User already exists with this email' });
     }
@@ -28,13 +28,11 @@ router.post('/register', async (req, res) => {
     const salt = await bcrypt.genSalt(10);
     const passwordHash = await bcrypt.hash(password, salt);
 
-    user = new User({
+    user = await userStore.create({
       name,
-      email: email.toLowerCase(),
+      email,
       passwordHash,
     });
-
-    await user.save();
 
     const payload = {
       user: {
@@ -57,8 +55,8 @@ router.post('/register', async (req, res) => {
       });
     });
   } catch (err) {
-    console.error('Register error:', err.message);
-    res.status(500).json({ message: 'Server error during registration' });
+    console.error('Register error:', err);
+    res.status(500).json({ message: err.message || 'Server error during registration' });
   }
 });
 
@@ -73,7 +71,7 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ message: 'Please enter email and password' });
     }
 
-    const user = await User.findOne({ email: email.toLowerCase() });
+    const user = await userStore.findByEmail(email);
     if (!user) {
       return res.status(400).json({ message: 'Invalid credentials' });
     }
@@ -114,7 +112,7 @@ router.post('/login', async (req, res) => {
 // @access  Private
 router.get('/me', authMiddleware, async (req, res) => {
   try {
-    const user = await User.findById(req.user.id).select('-passwordHash');
+    const user = await userStore.findById(req.user.id);
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }

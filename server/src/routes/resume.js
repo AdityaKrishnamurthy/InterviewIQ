@@ -6,7 +6,7 @@ const path = require('path');
 const fs = require('fs');
 
 const authMiddleware = require('../middleware/auth');
-const Resume = require('../models/Resume');
+const { resumeStore } = require('../db');
 const { parseResumeText } = require('../services/gemini');
 
 // Ensure uploads directory exists
@@ -68,18 +68,16 @@ router.post('/upload', authMiddleware, upload.single('resume'), async (req, res)
       return res.status(400).json({ message: 'Could not extract text from uploaded PDF' });
     }
 
-    // Call Gemini AI parser
+    // Call Groq / Gemini AI parser
     const parsedData = await parseResumeText(extractedText);
 
-    // Save resume to DB
-    const resume = new Resume({
+    // Save resume
+    const resume = await resumeStore.create({
       userId: req.user.id,
       filename: originalFilename,
-      rawText: extractedText.slice(0, 5000), // store up to 5000 chars raw text
+      rawText: extractedText.slice(0, 5000),
       parsedData,
     });
-
-    await resume.save();
 
     res.status(201).json({
       message: 'Resume uploaded and parsed successfully',
@@ -101,7 +99,7 @@ router.post('/upload', authMiddleware, upload.single('resume'), async (req, res)
 // @access  Private
 router.get('/latest', authMiddleware, async (req, res) => {
   try {
-    const resume = await Resume.findOne({ userId: req.user.id }).sort({ createdAt: -1 });
+    const resume = await resumeStore.findLatestByUserId(req.user.id);
 
     if (!resume) {
       return res.status(404).json({ message: 'No resume found for user' });

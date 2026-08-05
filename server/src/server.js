@@ -7,6 +7,9 @@ const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '../../.env.local') });
 require('dotenv').config();
 
+// Disable buffering so queries fail fast when DB is disconnected
+mongoose.set('bufferCommands', false);
+
 const authRoutes = require('./routes/auth');
 const resumeRoutes = require('./routes/resume');
 const sessionRoutes = require('./routes/session');
@@ -24,15 +27,18 @@ app.use('/api/auth', authRoutes);
 app.use('/api/resume', resumeRoutes);
 app.use('/api/session', sessionRoutes);
 
+// Keep event loop open even if MongoDB connection is omitted/disconnected
+setInterval(() => {}, 1000 * 60 * 60);
+
 // MongoDB connection
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/interviewiq';
 
 mongoose
-  .connect(MONGO_URI)
+  .connect(MONGO_URI, { serverSelectionTimeoutMS: 2000 })
   .then(() => console.log('MongoDB connected successfully'))
   .catch((err) => {
-    console.warn('MongoDB connection warning:', err.message);
-    console.warn('Backend API ready (note: DB features require running MongoDB instance).');
+    console.warn('Local MongoDB unavailable:', err.message);
+    console.log('Using robust in-memory store fallback for authentication and sessions.');
   });
 
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

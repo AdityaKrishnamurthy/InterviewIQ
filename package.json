@@ -6,6 +6,10 @@
     "client",
     "server"
   ],
+  "scripts": {
+    "client": "npm run dev --workspace=client",
+    "server": "node server/src/server.js"
+  },
   "dependencies": {
     "pdf-parse": "^1.1.1"
   }

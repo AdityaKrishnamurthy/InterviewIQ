@@ -5,7 +5,7 @@ require('dotenv').config({ path: path.join(__dirname, '../../../.env.local') });
 require('dotenv').config();
 
 const getGroqClient = () => {
-  const apiKey = process.env.GROQ_API_KEY;
+  const apiKey = process.env.GROQ_API_KEY || (process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY.startsWith('gsk_') ? process.env.GEMINI_API_KEY : null);
   if (apiKey && apiKey !== 'your_groq_key_here') {
     return new Groq({ apiKey });
   }

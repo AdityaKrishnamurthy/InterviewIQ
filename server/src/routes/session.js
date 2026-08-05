@@ -3,8 +3,7 @@ const router = express.Router();
 const crypto = require('crypto');
 
 const authMiddleware = require('../middleware/auth');
-const Session = require('../models/Session');
-const Resume = require('../models/Resume');
+const { sessionStore, resumeStore } = require('../db');
 const {
   PERSONAS,
   generateInitialQuestion,
@@ -28,10 +27,10 @@ router.post('/start', authMiddleware, async (req, res) => {
 
     let resumeObj = null;
     if (resumeId) {
-      resumeObj = await Resume.findById(resumeId);
+      resumeObj = await resumeStore.findById(resumeId);
     }
     if (!resumeObj) {
-      resumeObj = await Resume.findOne({ userId: req.user.id }).sort({ createdAt: -1 });
+      resumeObj = await resumeStore.findLatestByUserId(req.user.id);
     }
 
     const resumeData = resumeObj ? resumeObj.parsedData : null;
@@ -51,7 +50,7 @@ router.post('/start', authMiddleware, async (req, res) => {
       timestamp: new Date(),
     };
 
-    const session = new Session({
+    const session = await sessionStore.create({
       userId: req.user.id,
       resumeId: resumeObj ? resumeObj._id : null,
       companyPersona,
@@ -60,8 +59,6 @@ router.post('/start', authMiddleware, async (req, res) => {
       messages: [initialMessage],
       topicHistory: [initial.topic],
     });
-
-    await session.save();
 
     res.status(201).json({
       message: 'Interview session started',
@@ -84,7 +81,7 @@ router.post('/answer', authMiddleware, async (req, res) => {
       return res.status(400).json({ message: 'Please provide sessionId and answer text' });
     }
 
-    const session = await Session.findOne({ _id: sessionId, userId: req.user.id });
+    const session = await sessionStore.findByIdAndUserId(sessionId, req.user.id);
 
     if (!session) {
       return res.status(404).json({ message: 'Session not found' });
@@ -102,7 +99,7 @@ router.post('/answer', authMiddleware, async (req, res) => {
     // Fetch resume context if available
     let resumeData = null;
     if (session.resumeId) {
-      const resumeObj = await Resume.findById(session.resumeId);
+      const resumeObj = await resumeStore.findById(session.resumeId);
       if (resumeObj) resumeData = resumeObj.parsedData;
     }
 
@@ -184,7 +181,7 @@ router.post('/answer', authMiddleware, async (req, res) => {
 // @access  Private
 router.post('/:id/complete', authMiddleware, async (req, res) => {
   try {
-    const session = await Session.findOne({ _id: req.params.id, userId: req.user.id });
+    const session = await sessionStore.findByIdAndUserId(req.params.id, req.user.id);
 
     if (!session) {
       return res.status(404).json({ message: 'Session not found' });
@@ -192,7 +189,7 @@ router.post('/:id/complete', authMiddleware, async (req, res) => {
 
     let resumeData = null;
     if (session.resumeId) {
-      const resumeObj = await Resume.findById(session.resumeId);
+      const resumeObj = await resumeStore.findById(session.resumeId);
       if (resumeObj) resumeData = resumeObj.parsedData;
     }
 
@@ -232,7 +229,7 @@ router.post('/:id/complete', authMiddleware, async (req, res) => {
 // @access  Private
 router.get('/:id/report', authMiddleware, async (req, res) => {
   try {
-    const session = await Session.findOne({ _id: req.params.id, userId: req.user.id });
+    const session = await sessionStore.findByIdAndUserId(req.params.id, req.user.id);
 
     if (!session) {
       return res.status(404).json({ message: 'Session not found' });
@@ -242,7 +239,7 @@ router.get('/:id/report', authMiddleware, async (req, res) => {
       // Auto-generate if not yet completed
       let resumeData = null;
       if (session.resumeId) {
-        const resumeObj = await Resume.findById(session.resumeId);
+        const resumeObj = await resumeStore.findById(session.resumeId);
         if (resumeObj) resumeData = resumeObj.parsedData;
       }
 
@@ -286,7 +283,7 @@ router.get('/:id/report', authMiddleware, async (req, res) => {
 // @access  Private
 router.get('/:id', authMiddleware, async (req, res) => {
   try {
-    const session = await Session.findOne({ _id: req.params.id, userId: req.user.id });
+    const session = await sessionStore.findByIdAndUserId(req.params.id, req.user.id);
     if (!session) {
       return res.status(404).json({ message: 'Session not found' });
     }
@@ -302,7 +299,7 @@ router.get('/:id', authMiddleware, async (req, res) => {
 // @access  Private
 router.get('/', authMiddleware, async (req, res) => {
   try {
-    const sessions = await Session.find({ userId: req.user.id }).sort({ updatedAt: -1 });
+    const sessions = await sessionStore.findByUserId(req.user.id);
     res.json({ sessions });
   } catch (err) {
     console.error('Fetch sessions error:', err.message);
