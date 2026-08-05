@@ -36,7 +36,7 @@ const calculateNextDifficulty = (currentDifficulty, score) => {
     if (currentDifficulty === 'medium') return 'easy';
     return 'easy';
   }
-  return currentDifficulty; // score === 3 stays same
+  return currentDifficulty;
 };
 
 /**
@@ -46,7 +46,10 @@ const generateInitialQuestion = async ({ persona, targetRole, resumeData }) => {
   const personaInfo = PERSONAS[persona] || PERSONAS.General;
 
   const skillsText = resumeData?.skills?.join(', ') || 'General Software Engineering';
-  const projectsText = resumeData?.projects?.map((p) => `Project "${p.name}": ${p.description} (Tech: ${p.techStack?.join(', ') || 'N/A'})`).join('\n') || 'No projects listed';
+  const projectsText =
+    resumeData?.projects
+      ?.map((p) => `Project "${p.name}": ${p.description} (Tech: ${p.techStack?.join(', ') || 'N/A'})`)
+      .join('\n') || 'No projects listed';
 
   const systemPrompt = `You are a ${personaInfo.name} interviewing a candidate for a ${targetRole} position.
 Style: ${personaInfo.style}
@@ -59,10 +62,10 @@ ${projectsText}
 Task:
 Generate the opening turn of this technical interview.
 You MUST conduct a Resume Deep Dive:
-1. Provide a warm 1-sentence welcome welcoming them to the ${targetRole} interview.
-2. Select one specific project from their resume (or technical skill) and ask a deep-dive architecture/design question about it (Difficulty: Medium). Ask about specific implementation details, choices, or challenges.
+1. Provide a warm 1-sentence welcome for the ${targetRole} interview.
+2. Select one specific project or core skill from their resume and ask a deep-dive question about architecture, design trade-offs, or implementation choices (Difficulty: Medium).
 
-Return ONLY a JSON object with schema:
+Return ONLY a JSON object:
 {
   "greeting": "Welcome to your ${targetRole} technical interview...",
   "question": "Your deep-dive question here...",
@@ -93,7 +96,7 @@ Return ONLY a JSON object with schema:
 };
 
 /**
- * Evaluates candidate answer and generates adaptive follow-up question
+ * Evaluates candidate answer and generates adaptive follow-up question with Interview Memory
  */
 const evaluateAndGenerateFollowup = async ({
   persona,
@@ -102,13 +105,24 @@ const evaluateAndGenerateFollowup = async ({
   currentDifficulty,
   previousQuestion,
   candidateAnswer,
+  sessionHistory = [],
 }) => {
   const personaInfo = PERSONAS[persona] || PERSONAS.General;
+
+  // Extract interview memory: weak points (candidate turns where score <= 2)
+  const weakMemory = sessionHistory
+    .filter((m) => m.role === 'candidate' && typeof m.score === 'number' && m.score <= 2)
+    .map((m) => `Topic: ${m.difficulty || 'medium'}, Response snippet: "${m.content.slice(0, 80)}...", Feedback: "${m.evaluation}"`);
+
+  const memoryContext =
+    weakMemory.length > 0
+      ? `\nInterview Memory (Candidate's Earlier Weak Points in Session):\n- ${weakMemory.join('\n- ')}\n`
+      : '';
 
   const systemPrompt = `You are a ${personaInfo.name} interviewing a candidate for a ${targetRole} role.
 Current Difficulty: ${currentDifficulty}
 
-Previous Interviewer Question:
+Previous Question Asked:
 "${previousQuestion}"
 
 Candidate Answer:
@@ -117,19 +131,15 @@ Candidate Answer:
 Candidate Resume Context:
 Skills: ${resumeData?.skills?.join(', ') || 'N/A'}
 Projects: ${resumeData?.projects?.map((p) => p.name).join(', ') || 'N/A'}
-
+${memoryContext}
 Tasks:
-1. Thoroughly evaluate the candidate's answer quality on a scale of 1 to 5:
-   - 5 = Outstanding depth, accurate architecture/trade-offs, clear communication.
-   - 4 = Strong technical answer with minor omitted edge cases.
-   - 3 = Average/partial answer; basic understanding demonstrated.
-   - 2 = Weak/superficial answer; missed key technical concepts.
-   - 1 = Incorrect, off-topic, or empty response.
-2. Write a 2-sentence feedback evaluation highlighting specific strengths or gaps.
+1. Evaluate the candidate's answer on a 1-5 scale (1 = poor, 3 = average, 5 = exceptional).
+2. Write a 2-sentence feedback evaluation detailing technical strengths or gaps.
 3. Generate the NEXT follow-up question adapting difficulty dynamically:
-   - If score >= 4: Increase challenge (e.g. scaling, edge cases, failure recovery, micro-optimizations).
-   - If score <= 2: Simplify or ask about fundamental core concepts.
+   - If score >= 4: Increase challenge (e.g. scaling, edge cases, failure recovery).
+   - If score <= 2: Simplify or pivot to core fundamentals.
    - If score == 3: Explore deeper or move to a lateral technical topic.
+   - INTERVIEW MEMORY INSTRUCTION: If candidate struggled earlier in this session on a specific topic (see Interview Memory), occasionally circle back to re-test their understanding of that concept in a new context.
 
 Return ONLY raw JSON:
 {
@@ -139,7 +149,7 @@ Return ONLY raw JSON:
   "topic": "System Scalability"
 }`;
 
-  const userPrompt = `Evaluate the candidate response and generate the next adaptive follow-up question.`;
+  const userPrompt = `Evaluate candidate answer and generate next adaptive question.`;
 
   try {
     const parsed = await generateCompletion({

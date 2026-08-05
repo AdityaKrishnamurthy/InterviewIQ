@@ -18,6 +18,13 @@ const MessageSchema = new mongoose.Schema({
   timestamp: { type: Date, default: Date.now },
 });
 
+const SkillConfidenceSchema = new mongoose.Schema({
+  skill: { type: String, required: true },
+  score: { type: Number, required: true }, // 1 to 5
+  status: { type: String, enum: ['strong', 'moderate', 'weak'], required: true },
+  evidence: { type: String, default: '' },
+});
+
 const SessionSchema = new mongoose.Schema({
   userId: {
     type: mongoose.Schema.Types.ObjectId,
@@ -49,7 +56,15 @@ const SessionSchema = new mongoose.Schema({
   },
   messages: [MessageSchema],
   topicHistory: [{ type: String }],
+  weakPoints: [{ type: String }],
+  skillConfidence: [SkillConfidenceSchema],
   overallScore: { type: Number, default: 0 },
+  reportData: {
+    strengths: [{ type: String }],
+    weaknesses: [{ type: String }],
+    roadmap: [{ title: String, description: String, priority: String }],
+    summary: { type: String, default: '' },
+  },
   createdAt: {
     type: Date,
     default: Date.now,
