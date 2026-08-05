@@ -36,6 +36,7 @@ const Dashboard = () => {
               backgroundColor: 'var(--bg-main)',
               borderRadius: 'var(--radius-md)',
               border: '1px solid var(--border-color)',
+              marginBottom: '1.5rem',
             }}
           >
             <h3 style={{ fontSize: '1.1rem', marginBottom: '0.5rem', color: 'var(--secondary)' }}>
@@ -44,6 +45,32 @@ const Dashboard = () => {
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
               Email: <strong style={{ color: 'var(--text-primary)' }}>{user?.email}</strong>
             </p>
+          </div>
+
+          <div
+            style={{
+              padding: '1.5rem',
+              backgroundColor: 'rgba(108, 99, 255, 0.05)',
+              borderRadius: 'var(--radius-md)',
+              border: '1px solid var(--primary)',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              gap: '1rem',
+            }}
+          >
+            <div>
+              <h3 style={{ fontSize: '1.2rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                Step 1: Upload Your Technical Resume
+              </h3>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+                Let our AI extract your project experience and tech stack to customize your technical interview.
+              </p>
+            </div>
+            <a href="/resume" className="btn btn-primary" style={{ width: 'auto', padding: '0.75rem 1.5rem' }}>
+              Upload Resume →
+            </a>
           </div>
         </div>
       </main>
