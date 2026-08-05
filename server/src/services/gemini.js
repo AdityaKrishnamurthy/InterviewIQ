@@ -1,77 +1,54 @@
-const { GoogleGenAI } = require('@google/genai');
-
-const getApiKey = () => {
-  return process.env.GEMINI_API_KEY || '';
-};
+const { generateCompletion } = require('./aiProvider');
 
 /**
- * Parses resume text using Gemini API and returns structured JSON containing projects, skills, experience.
+ * Parses resume text using Groq LLM (llama-3.3-70b-versatile) and returns structured JSON
  */
 const parseResumeText = async (resumeText) => {
-  const apiKey = getApiKey();
-
-  const prompt = `You are an expert technical interviewer and resume parser.
-Analyze the following resume text and extract structured information.
-Return ONLY a valid, raw JSON object with NO markdown formatting, NO backticks, and NO extra text outside the JSON.
-
-Expected JSON schema:
+  const systemPrompt = `You are an expert technical resume parser and senior engineering hiring manager.
+Analyze the provided resume text thoroughly and extract structured candidate data.
+You MUST return ONLY a valid JSON object matching this exact structure:
 {
   "projects": [
     {
       "name": "Project Name",
-      "description": "Brief 1-2 sentence description",
-      "techStack": ["React", "Node.js", "MongoDB"]
+      "description": "2-3 sentence overview of what was built, problem solved, and technical architecture",
+      "techStack": ["React", "Node.js", "Express", "MongoDB"]
     }
   ],
-  "skills": ["JavaScript", "Python", "System Design", "AWS"],
+  "skills": ["JavaScript", "Python", "System Design", "Docker", "AWS"],
   "experience": [
     {
-      "company": "Company Name",
+      "company": "Company / Organization Name",
       "role": "Role / Position",
-      "duration": "e.g. Jun 2023 - Present or 1 year"
+      "duration": "e.g. Jun 2023 - Present or 1 Year"
     }
   ],
-  "rawSummary": "A concise 2-sentence candidate profile summary"
-}
+  "rawSummary": "A high-impact 2-sentence summary highlighting core strengths and experience level."
+}`;
 
-Resume Text:
-"""
-${resumeText}
-"""`;
+  const userPrompt = `Extract skills, projects, and work experience from the following resume text:\n\n"""\n${resumeText}\n"""`;
 
-  if (apiKey && apiKey !== 'your_key_here') {
-    try {
-      const ai = new GoogleGenAI({ apiKey });
-      const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: prompt,
-      });
+  try {
+    const parsed = await generateCompletion({
+      systemPrompt,
+      userPrompt,
+      jsonMode: true,
+    });
 
-      let text = response.text ? response.text.trim() : '';
-
-      // Strip markdown code block wrappers if Gemini wraps JSON in ```json ... ```
-      if (text.startsWith('```')) {
-        text = text.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim();
-      }
-
-      const parsed = JSON.parse(text);
-      return {
-        projects: Array.isArray(parsed.projects) ? parsed.projects : [],
-        skills: Array.isArray(parsed.skills) ? parsed.skills : [],
-        experience: Array.isArray(parsed.experience) ? parsed.experience : [],
-        rawSummary: parsed.rawSummary || '',
-      };
-    } catch (err) {
-      console.warn('Gemini API parse notice:', err.message);
-    }
+    return {
+      projects: Array.isArray(parsed.projects) ? parsed.projects : [],
+      skills: Array.isArray(parsed.skills) ? parsed.skills : [],
+      experience: Array.isArray(parsed.experience) ? parsed.experience : [],
+      rawSummary: parsed.rawSummary || '',
+    };
+  } catch (err) {
+    console.warn('AI Resume Parsing warning, using fallback:', err.message);
+    return fallbackResumeParsing(resumeText);
   }
-
-  // Smart regex / heuristic fallback if API key is not provided or API call fails
-  return fallbackResumeParsing(resumeText);
 };
 
 /**
- * Heuristic parser fallback for offline testing or missing API key
+ * Fallback parser if API call fails
  */
 const fallbackResumeParsing = (resumeText) => {
   const text = resumeText || '';
@@ -91,7 +68,6 @@ const fallbackResumeParsing = (resumeText) => {
     }
   });
 
-  // Extract candidate projects heuristic
   const projects = [];
   let currentProject = null;
 
@@ -134,5 +110,4 @@ const fallbackResumeParsing = (resumeText) => {
 
 module.exports = {
   parseResumeText,
-  getApiKey,
 };

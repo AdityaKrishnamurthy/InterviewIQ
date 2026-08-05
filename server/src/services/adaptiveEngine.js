@@ -1,4 +1,4 @@
-const { GoogleGenAI } = require('@google/genai');
+const { generateCompletion } = require('./aiProvider');
 
 const PERSONAS = {
   Google: {
@@ -23,8 +23,6 @@ const PERSONAS = {
   },
 };
 
-const getApiKey = () => process.env.GEMINI_API_KEY || '';
-
 /**
  * Calculates next difficulty level based on candidate score (1-5)
  */
@@ -42,60 +40,56 @@ const calculateNextDifficulty = (currentDifficulty, score) => {
 };
 
 /**
- * Generates initial greeting and first interview question tailored to persona & resume
+ * Generates initial greeting and first interview question tailored to persona & resume deep-dive
  */
 const generateInitialQuestion = async ({ persona, targetRole, resumeData }) => {
   const personaInfo = PERSONAS[persona] || PERSONAS.General;
-  const apiKey = getApiKey();
 
   const skillsText = resumeData?.skills?.join(', ') || 'General Software Engineering';
-  const projectsText = resumeData?.projects?.map((p) => `${p.name}: ${p.description}`).join('; ') || 'No projects listed';
+  const projectsText = resumeData?.projects?.map((p) => `Project "${p.name}": ${p.description} (Tech: ${p.techStack?.join(', ') || 'N/A'})`).join('\n') || 'No projects listed';
 
-  const prompt = `You are a ${personaInfo.name} interviewing a candidate for a ${targetRole} position.
+  const systemPrompt = `You are a ${personaInfo.name} interviewing a candidate for a ${targetRole} position.
 Style: ${personaInfo.style}
 
-Candidate Skills: ${skillsText}
-Candidate Resume Projects: ${projectsText}
+Candidate Resume Profile:
+- Demonstrated Skills: ${skillsText}
+- Resume Projects for Deep Dive:
+${projectsText}
 
-Generate the opening turn of the technical interview.
-Provide a friendly 1-sentence welcome, followed by your FIRST technical interview question (Difficulty: Medium).
-If candidate has projects listed, touch upon their most relevant project or core skill.
+Task:
+Generate the opening turn of this technical interview.
+You MUST conduct a Resume Deep Dive:
+1. Provide a warm 1-sentence welcome welcoming them to the ${targetRole} interview.
+2. Select one specific project from their resume (or technical skill) and ask a deep-dive architecture/design question about it (Difficulty: Medium). Ask about specific implementation details, choices, or challenges.
 
-Return ONLY a JSON object:
+Return ONLY a JSON object with schema:
 {
-  "greeting": "Welcome to the InterviewIQ session for ${targetRole}.",
-  "question": "Your first question here",
-  "topic": "Topic Name (e.g. React Virtual DOM or Array Optimization)"
+  "greeting": "Welcome to your ${targetRole} technical interview...",
+  "question": "Your deep-dive question here...",
+  "topic": "Project or Skill Topic Name"
 }`;
 
-  if (apiKey && apiKey !== 'your_key_here') {
-    try {
-      const ai = new GoogleGenAI({ apiKey });
-      const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: prompt,
-      });
+  const userPrompt = `Generate initial greeting and first resume deep-dive question for ${targetRole}.`;
 
-      let text = response.text ? response.text.trim() : '';
-      if (text.startsWith('```')) {
-        text = text.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim();
-      }
-      const parsed = JSON.parse(text);
-      return {
-        content: `${parsed.greeting}\n\n${parsed.question}`,
-        topic: parsed.topic || 'General Tech',
-      };
-    } catch (err) {
-      console.warn('Gemini initial question warning:', err.message);
-    }
+  try {
+    const parsed = await generateCompletion({
+      systemPrompt,
+      userPrompt,
+      jsonMode: true,
+    });
+
+    return {
+      content: `${parsed.greeting}\n\n${parsed.question}`,
+      topic: parsed.topic || 'Resume Deep Dive',
+    };
+  } catch (err) {
+    console.warn('AI initial question warning, using fallback:', err.message);
+    const firstProject = resumeData?.projects?.[0]?.name || 'your latest technical project';
+    return {
+      content: `Welcome to your ${targetRole} technical interview with the ${personaInfo.name} persona!\n\nTo kick off our resume deep-dive, walk me through the architecture of ${firstProject}. What key technical trade-offs did you make during implementation?`,
+      topic: firstProject,
+    };
   }
-
-  // Fallback initial question
-  const firstProject = resumeData?.projects?.[0]?.name || 'your latest technical project';
-  return {
-    content: `Welcome to your ${targetRole} technical interview with the ${personaInfo.name} persona!\n\nTo kick off, tell me about the architecture of ${firstProject}. What key technical trade-offs did you make during implementation?`,
-    topic: firstProject,
-  };
 };
 
 /**
@@ -108,13 +102,11 @@ const evaluateAndGenerateFollowup = async ({
   currentDifficulty,
   previousQuestion,
   candidateAnswer,
-  sessionHistory,
 }) => {
   const personaInfo = PERSONAS[persona] || PERSONAS.General;
-  const apiKey = getApiKey();
 
-  const prompt = `You are a ${personaInfo.name} interviewing a candidate for a ${targetRole} role.
-Current Question Difficulty: ${currentDifficulty}
+  const systemPrompt = `You are a ${personaInfo.name} interviewing a candidate for a ${targetRole} role.
+Current Difficulty: ${currentDifficulty}
 
 Previous Interviewer Question:
 "${previousQuestion}"
@@ -127,75 +119,69 @@ Skills: ${resumeData?.skills?.join(', ') || 'N/A'}
 Projects: ${resumeData?.projects?.map((p) => p.name).join(', ') || 'N/A'}
 
 Tasks:
-1. Score the candidate's answer from 1 to 5 (1 = poor/incorrect, 3 = average/partial, 5 = exceptional/thorough).
-2. Provide a 2-sentence feedback evaluation explaining strengths or gaps.
-3. Based on the score, generate the NEXT follow-up question:
-   - If score >= 4: Increase challenge/difficulty.
-   - If score <= 2: Simplify or pivot to core fundamentals.
-   - If score == 3: Explore deeper or move to a lateral topic.
+1. Thoroughly evaluate the candidate's answer quality on a scale of 1 to 5:
+   - 5 = Outstanding depth, accurate architecture/trade-offs, clear communication.
+   - 4 = Strong technical answer with minor omitted edge cases.
+   - 3 = Average/partial answer; basic understanding demonstrated.
+   - 2 = Weak/superficial answer; missed key technical concepts.
+   - 1 = Incorrect, off-topic, or empty response.
+2. Write a 2-sentence feedback evaluation highlighting specific strengths or gaps.
+3. Generate the NEXT follow-up question adapting difficulty dynamically:
+   - If score >= 4: Increase challenge (e.g. scaling, edge cases, failure recovery, micro-optimizations).
+   - If score <= 2: Simplify or ask about fundamental core concepts.
+   - If score == 3: Explore deeper or move to a lateral technical topic.
 
-Return ONLY raw JSON with NO markdown wrappers:
+Return ONLY raw JSON:
 {
   "score": 4,
-  "evaluation": "Strong explanation of asynchronous handling, but missed error boundary cases.",
-  "nextQuestion": "Follow-up question string here...",
-  "topic": "Topic Name"
+  "evaluation": "Clear explanation of backend architecture, but lacked specifics on database indexing.",
+  "nextQuestion": "Follow-up question string...",
+  "topic": "System Scalability"
 }`;
 
-  if (apiKey && apiKey !== 'your_key_here') {
-    try {
-      const ai = new GoogleGenAI({ apiKey });
-      const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: prompt,
-      });
+  const userPrompt = `Evaluate the candidate response and generate the next adaptive follow-up question.`;
 
-      let text = response.text ? response.text.trim() : '';
-      if (text.startsWith('```')) {
-        text = text.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim();
-      }
+  try {
+    const parsed = await generateCompletion({
+      systemPrompt,
+      userPrompt,
+      jsonMode: true,
+    });
 
-      const parsed = JSON.parse(text);
-      const score = Math.max(1, Math.min(5, Number(parsed.score) || 3));
-      const nextDifficulty = calculateNextDifficulty(currentDifficulty, score);
+    const score = Math.max(1, Math.min(5, Number(parsed.score) || 3));
+    const nextDifficulty = calculateNextDifficulty(currentDifficulty, score);
 
-      return {
-        score,
-        evaluation: parsed.evaluation || 'Answer processed successfully.',
-        nextQuestion: parsed.nextQuestion || 'Can you walk me through how you would optimize this solution further?',
-        nextDifficulty,
-        topic: parsed.topic || 'System Optimization',
-      };
-    } catch (err) {
-      console.warn('Gemini evaluation warning:', err.message);
-    }
+    return {
+      score,
+      evaluation: parsed.evaluation || 'Answer evaluated.',
+      nextQuestion: parsed.nextQuestion || 'How would you optimize this implementation further?',
+      nextDifficulty,
+      topic: parsed.topic || 'Technical Deep-Dive',
+    };
+  } catch (err) {
+    console.warn('AI evaluation warning, using fallback:', err.message);
+    const wordCount = candidateAnswer.split(/\s+/).length;
+    let score = 3;
+    if (wordCount > 30) score = 4;
+    if (wordCount < 10) score = 2;
+
+    const nextDifficulty = calculateNextDifficulty(currentDifficulty, score);
+    return {
+      score,
+      evaluation:
+        score >= 4
+          ? 'Good technical depth and clarity.'
+          : 'Answer was brief; consider elaborating on architectural trade-offs.',
+      nextQuestion:
+        nextDifficulty === 'hard'
+          ? 'How would you scale this design to handle 100x traffic while maintaining sub-50ms latency?'
+          : nextDifficulty === 'medium'
+          ? 'What potential failure modes or memory leaks could occur, and how would you prevent them?'
+          : 'Could you explain the core fundamentals and time complexity of your approach?',
+      nextDifficulty,
+      topic: 'Technical Deep-Dive',
+    };
   }
-
-  // Fallback evaluation if API key unavailable
-  const wordCount = candidateAnswer.split(/\s+/).length;
-  let score = 3;
-  if (wordCount > 30) score = 4;
-  if (wordCount < 10) score = 2;
-
-  const nextDifficulty = calculateNextDifficulty(currentDifficulty, score);
-  const feedback =
-    score >= 4
-      ? 'Good depth and clarity in your technical explanation.'
-      : 'Answer was brief; consider expanding on underlying trade-offs and edge cases.';
-
-  const followupQuestions = {
-    hard: 'How would you scale this design to handle 100x traffic while maintaining sub-50ms latency?',
-    medium: 'What potential failure modes or memory leaks could occur with this implementation, and how would you prevent them?',
-    easy: 'Could you explain the core fundamentals and time complexity of your approach?',
-  };
-
-  return {
-    score,
-    evaluation: feedback,
-    nextQuestion: followupQuestions[nextDifficulty],
-    nextDifficulty,
-    topic: 'Technical Deep-Dive',
-  };
 };
 
 module.exports = {

@@ -1,6 +1,10 @@
 const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
+const path = require('path');
+
+// Load environment variables from .env.local in root directory
+require('dotenv').config({ path: path.join(__dirname, '../../.env.local') });
 require('dotenv').config();
 
 const authRoutes = require('./routes/auth');

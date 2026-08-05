@@ -5,5 +5,8 @@
   "workspaces": [
     "client",
     "server"
-  ]
+  ],
+  "dependencies": {
+    "pdf-parse": "^1.1.1"
+  }
 }
