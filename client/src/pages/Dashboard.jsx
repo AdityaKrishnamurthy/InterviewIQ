@@ -32,7 +32,7 @@ const Dashboard = () => {
           <div
             style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
               gap: '1.25rem',
             }}
           >
@@ -94,6 +94,35 @@ const Dashboard = () => {
                 }}
               >
                 Start Interview Session →
+              </button>
+            </div>
+
+            {/* Step 3 Card */}
+            <div
+              style={{
+                padding: '1.5rem',
+                backgroundColor: 'rgba(255, 179, 71, 0.05)',
+                borderRadius: 'var(--radius-md)',
+                border: '1px solid var(--warning)',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between',
+              }}
+            >
+              <div>
+                <h3 style={{ fontSize: '1.2rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.5rem' }}>
+                  3. Truthfulness Audit & Report
+                </h3>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '1.5rem' }}>
+                  Review your skill confidence scores, resume claim truthfulness ratings, strengths, and roadmap.
+                </p>
+              </div>
+              <button
+                onClick={() => navigate('/report')}
+                className="btn btn-secondary"
+                style={{ width: '100%' }}
+              >
+                View Latest Report →
               </button>
             </div>
           </div>

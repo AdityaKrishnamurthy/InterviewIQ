@@ -277,6 +277,27 @@ const InterviewSession = () => {
                     </span>
                   </div>
                 )}
+
+                <button
+                  onClick={async () => {
+                    try {
+                      setSubmitting(true);
+                      await fetch(`/api/session/${session._id}/complete`, {
+                        method: 'POST',
+                        headers: { Authorization: `Bearer ${token}` },
+                      });
+                      navigate(`/report/${session._id}`);
+                    } catch (err) {
+                      setError('Error completing session');
+                    } finally {
+                      setSubmitting(false);
+                    }
+                  }}
+                  className="btn btn-secondary"
+                  style={{ padding: '0.5rem 1rem', fontSize: '0.85rem' }}
+                >
+                  End & View Report →
+                </button>
               </div>
             </div>
 

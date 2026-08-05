@@ -6,6 +6,7 @@ import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import ResumeUpload from './pages/ResumeUpload';
 import InterviewSession from './pages/InterviewSession';
+import FinalReport from './pages/FinalReport';
 import PrivateRoute from './components/PrivateRoute';
 
 function App() {
@@ -36,6 +37,14 @@ function App() {
             element={
               <PrivateRoute>
                 <InterviewSession />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/report/:sessionId?"
+            element={
+              <PrivateRoute>
+                <FinalReport />
               </PrivateRoute>
             }
           />
