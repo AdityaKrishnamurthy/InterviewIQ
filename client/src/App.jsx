@@ -5,6 +5,7 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import ResumeUpload from './pages/ResumeUpload';
+import InterviewSession from './pages/InterviewSession';
 import PrivateRoute from './components/PrivateRoute';
 
 function App() {
@@ -27,6 +28,14 @@ function App() {
             element={
               <PrivateRoute>
                 <ResumeUpload />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/interview"
+            element={
+              <PrivateRoute>
+                <InterviewSession />
               </PrivateRoute>
             }
           />
