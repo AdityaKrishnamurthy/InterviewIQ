@@ -4,3 +4,9 @@ plans/
 AGENTS.md
 DESIGN.md
 PRD.md
+
+# Build & Dependency Artifacts
+node_modules
+.env.local
+dist
+build
