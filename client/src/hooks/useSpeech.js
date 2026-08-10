@@ -1,274 +1,189 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 
-const SpeechRecognitionAPI = typeof window !== 'undefined'
-  ? (window.SpeechRecognition || window.webkitSpeechRecognition)
-  : null;
+const SpeechRecognitionAPI =
+  typeof window !== 'undefined'
+    ? window.SpeechRecognition || window.webkitSpeechRecognition
+    : null;
 
 const useSpeech = () => {
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [transcript, setTranscript] = useState('');
   const [interimTranscript, setInterimTranscript] = useState('');
-  const [error, setError] = useState('');
   const [speechDetected, setSpeechDetected] = useState(false);
+  const [error, setError] = useState('');
 
   const recognitionRef = useRef(null);
-  const shouldRestartRef = useRef(false);
-  const silenceTimerRef = useRef(null);
-  const speakingSafetyTimerRef = useRef(null);
   const finalTranscriptRef = useRef('');
   const isMountedRef = useRef(true);
   const isListeningRef = useRef(false);
+  const speakSafetyTimerRef = useRef(null);
 
-  const isSupported = typeof window !== 'undefined'
-    && !!SpeechRecognitionAPI
-    && !!window.speechSynthesis;
+  const isSupported =
+    typeof window !== 'undefined' &&
+    !!SpeechRecognitionAPI &&
+    !!window.speechSynthesis;
 
-  // Sync ref with state
-  const updateListeningState = (val) => {
+  /* ── helpers ── */
+  const setListening = (val) => {
     isListeningRef.current = val;
     if (isMountedRef.current) setIsListening(val);
   };
 
-  // Pick the best English voice
+  /* ── TTS ── */
   const getVoice = useCallback(() => {
-    if (!window.speechSynthesis) return null;
-    const voices = window.speechSynthesis.getVoices();
-    const english = voices.filter(v => v.lang.startsWith('en'));
-
-    // Prefer Google or Microsoft voices
-    const premium = english.find(v =>
-      v.name.includes('Google') || v.name.includes('Microsoft')
-    );
-    if (premium) return premium;
-
-    return english[0] || voices[0] || null;
+    const voices = window.speechSynthesis?.getVoices() ?? [];
+    const en = voices.filter((v) => v.lang.startsWith('en'));
+    return en.find((v) => v.name.includes('Google') || v.name.includes('Microsoft')) ?? en[0] ?? voices[0] ?? null;
   }, []);
 
-  // TTS: speak text aloud
-  const speak = useCallback((text) => {
-    if (!isSupported || !text) return;
+  const speak = useCallback(
+    (text) => {
+      if (!isSupported || !text) return;
+      if (speakSafetyTimerRef.current) clearTimeout(speakSafetyTimerRef.current);
+      window.speechSynthesis.cancel();
 
-    if (speakingSafetyTimerRef.current) clearTimeout(speakingSafetyTimerRef.current);
-    window.speechSynthesis.cancel(); // cancel any ongoing speech
+      const utter = new SpeechSynthesisUtterance(text);
+      utter.rate = 0.95;
+      const voice = getVoice();
+      if (voice) utter.voice = voice;
 
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.rate = 0.95;
-    utterance.pitch = 1.0;
-
-    const voice = getVoice();
-    if (voice) utterance.voice = voice;
-
-    utterance.onstart = () => {
-      if (isMountedRef.current) setIsSpeaking(true);
-      // Safety reset after 15 seconds in case browser fails to fire onend
-      speakingSafetyTimerRef.current = setTimeout(() => {
+      utter.onstart = () => { if (isMountedRef.current) setIsSpeaking(true); };
+      utter.onend = () => {
+        if (speakSafetyTimerRef.current) clearTimeout(speakSafetyTimerRef.current);
         if (isMountedRef.current) setIsSpeaking(false);
-      }, 15000);
-    };
+      };
+      utter.onerror = (e) => {
+        if (speakSafetyTimerRef.current) clearTimeout(speakSafetyTimerRef.current);
+        if (e.error !== 'canceled' && isMountedRef.current) setIsSpeaking(false);
+      };
 
-    utterance.onend = () => {
-      if (speakingSafetyTimerRef.current) clearTimeout(speakingSafetyTimerRef.current);
-      if (isMountedRef.current) setIsSpeaking(false);
-    };
+      window.speechSynthesis.speak(utter);
+      // safety: reset isSpeaking after 20s max
+      speakSafetyTimerRef.current = setTimeout(() => {
+        if (isMountedRef.current) setIsSpeaking(false);
+      }, 20000);
+    },
+    [isSupported, getVoice]
+  );
 
-    utterance.onerror = (e) => {
-      if (speakingSafetyTimerRef.current) clearTimeout(speakingSafetyTimerRef.current);
-      if (e.error !== 'canceled' && isMountedRef.current) {
-        setIsSpeaking(false);
-      }
-    };
-
-    window.speechSynthesis.speak(utterance);
-  }, [isSupported, getVoice]);
-
-  // TTS: stop speaking
   const stopSpeaking = useCallback(() => {
-    if (!isSupported) return;
-    if (speakingSafetyTimerRef.current) clearTimeout(speakingSafetyTimerRef.current);
-    window.speechSynthesis.cancel();
-    setIsSpeaking(false);
-  }, [isSupported]);
-
-  // Clear silence timers
-  const clearTimers = useCallback(() => {
-    if (silenceTimerRef.current) {
-      clearTimeout(silenceTimerRef.current);
-      silenceTimerRef.current = null;
-    }
+    if (speakSafetyTimerRef.current) clearTimeout(speakSafetyTimerRef.current);
+    window.speechSynthesis?.cancel();
+    if (isMountedRef.current) setIsSpeaking(false);
   }, []);
 
-  // Start silence timer (if no speech at all for 15s)
-  const startSilenceTimer = useCallback(() => {
-    if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
-    silenceTimerRef.current = setTimeout(() => {
-      if (isMountedRef.current && isListeningRef.current) {
-        shouldRestartRef.current = false;
-        if (recognitionRef.current) {
-          try { recognitionRef.current.stop(); } catch (e) { /* ignore */ }
-        }
-        updateListeningState(false);
-        setError('no-speech-timeout');
-      }
-    }, 15000);
-  }, []);
-
-  // Initialize recognition
+  /* ── STT: initialise once ── */
   useEffect(() => {
     if (!SpeechRecognitionAPI) return;
 
-    const recognition = new SpeechRecognitionAPI();
-    recognition.continuous = true;
-    recognition.interimResults = true;
-    recognition.lang = 'en-US';
+    const rec = new SpeechRecognitionAPI();
+    // NON-continuous: recognition stops on its own after a pause.
+    // We call .start() manually on each mic-press.
+    rec.continuous = false;
+    rec.interimResults = true;
+    rec.lang = 'en-US';
+    rec.maxAlternatives = 1;
 
-    recognition.onresult = (event) => {
-      if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
-      startSilenceTimer();
-
-      let interimText = '';
-      let finalText = finalTranscriptRef.current;
+    rec.onresult = (event) => {
+      let interim = '';
+      let final = finalTranscriptRef.current;
 
       for (let i = event.resultIndex; i < event.results.length; i++) {
-        const result = event.results[i];
-        if (result.isFinal) {
-          finalText += result[0].transcript + ' ';
-          finalTranscriptRef.current = finalText;
+        const res = event.results[i];
+        if (res.isFinal) {
+          final += res[0].transcript + ' ';
+          finalTranscriptRef.current = final;
         } else {
-          interimText += result[0].transcript;
+          interim += res[0].transcript;
         }
       }
 
-      const fullText = (finalText + interimText).trim();
-
+      const full = (final + interim).trim();
       if (isMountedRef.current) {
-        setTranscript(fullText);
-        setInterimTranscript(interimText);
-        if (fullText.length > 0) {
-          setSpeechDetected(true);
-        }
+        setTranscript(full);
+        setInterimTranscript(interim);
+        if (full.length > 0) setSpeechDetected(true);
       }
     };
 
-    recognition.onerror = (event) => {
+    rec.onerror = (event) => {
       if (!isMountedRef.current) return;
-
       if (event.error === 'aborted') return;
-
       if (event.error === 'not-allowed') {
         setError('not-allowed');
-        updateListeningState(false);
-        shouldRestartRef.current = false;
+        setListening(false);
       } else if (event.error === 'no-speech') {
-        // Handled by silence timer
+        // browser detected silence — just stop quietly
+        setListening(false);
       } else if (event.error === 'network') {
         setError('network');
-        updateListeningState(false);
-        shouldRestartRef.current = false;
-      } else {
-        setError(event.error);
+        setListening(false);
       }
+      // else ignore
     };
 
-    recognition.onend = () => {
-      if (shouldRestartRef.current && isMountedRef.current) {
-        try {
-          recognition.start();
-        } catch (e) {
-          if (isMountedRef.current) {
-            updateListeningState(false);
-            shouldRestartRef.current = false;
-          }
-        }
-      } else if (isMountedRef.current) {
-        updateListeningState(false);
-      }
+    rec.onend = () => {
+      // recognition session ended (either naturally or via .stop())
+      if (isMountedRef.current) setListening(false);
     };
 
-    recognitionRef.current = recognition;
+    recognitionRef.current = rec;
 
     return () => {
       isMountedRef.current = false;
-      shouldRestartRef.current = false;
-      clearTimers();
-      if (speakingSafetyTimerRef.current) clearTimeout(speakingSafetyTimerRef.current);
-      try { recognition.abort(); } catch (e) { /* ignore */ }
-      if (window.speechSynthesis) {
-        window.speechSynthesis.cancel();
-      }
+      if (speakSafetyTimerRef.current) clearTimeout(speakSafetyTimerRef.current);
+      try { rec.abort(); } catch (_) {}
+      window.speechSynthesis?.cancel();
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // STT: start listening
+  /* ── STT: start ── */
   const startListening = useCallback(() => {
     if (!isSupported || !recognitionRef.current) return;
+    if (isListeningRef.current) return; // already running
 
-    setError('');
     finalTranscriptRef.current = '';
-    setTranscript('');
-    setInterimTranscript('');
-    setSpeechDetected(false);
-    shouldRestartRef.current = true;
+    if (isMountedRef.current) {
+      setTranscript('');
+      setInterimTranscript('');
+      setSpeechDetected(false);
+      setError('');
+    }
 
     try {
       recognitionRef.current.start();
-      updateListeningState(true);
-      startSilenceTimer();
+      setListening(true);
     } catch (e) {
-      try {
-        recognitionRef.current.abort();
-        setTimeout(() => {
-          try {
-            recognitionRef.current.start();
-            updateListeningState(true);
-            startSilenceTimer();
-          } catch (e2) {
-            setError('start-failed');
-          }
-        }, 100);
-      } catch (e2) {
-        setError('start-failed');
-      }
+      console.warn('startListening error:', e.message);
     }
-  }, [isSupported, startSilenceTimer]);
+  }, [isSupported]);
 
-  // STT: stop listening
+  /* ── STT: stop ── */
   const stopListening = useCallback(() => {
-    shouldRestartRef.current = false;
-    clearTimers();
-    if (recognitionRef.current) {
-      try { recognitionRef.current.stop(); } catch (e) { /* ignore */ }
-    }
-    updateListeningState(false);
-  }, [clearTimers]);
+    if (!recognitionRef.current) return;
+    try { recognitionRef.current.stop(); } catch (_) {}
+    setListening(false);
+  }, []);
 
-  // STT: reset transcript
+  /* ── STT: reset ── */
   const resetTranscript = useCallback(() => {
-    setTranscript('');
-    setInterimTranscript('');
     finalTranscriptRef.current = '';
-    setSpeechDetected(false);
-    setError('');
+    if (isMountedRef.current) {
+      setTranscript('');
+      setInterimTranscript('');
+      setSpeechDetected(false);
+      setError('');
+    }
   }, []);
 
   return {
-    // TTS
-    speak,
-    stopSpeaking,
-    isSpeaking,
-    // STT
-    startListening,
-    stopListening,
-    transcript,
-    setTranscript,
-    interimTranscript,
-    speechDetected,
-    resetTranscript,
-    isListening,
-    // Shared
-    error,
-    setError,
-    isSupported,
+    speak, stopSpeaking, isSpeaking,
+    startListening, stopListening,
+    transcript, setTranscript,
+    interimTranscript, speechDetected,
+    resetTranscript, isListening,
+    error, setError, isSupported,
   };
 };
 
