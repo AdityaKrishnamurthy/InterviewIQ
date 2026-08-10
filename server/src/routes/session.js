@@ -278,6 +278,81 @@ router.get('/:id/report', authMiddleware, async (req, res) => {
   }
 });
 
+// @route   GET /api/session/history
+// @desc    Get complete session history and stats
+// @access  Private
+router.get('/history', authMiddleware, async (req, res) => {
+  try {
+    const sessions = await Session.find({ userId: req.user.id }).sort({ createdAt: 1 });
+    
+    let totalSessions = sessions.length;
+    let completedSessions = 0;
+    let totalScore = 0;
+    let bestScore = 0;
+    let scoreTimeline = [];
+    let personaStats = {};
+
+    const formattedSessions = sessions.map(session => {
+      const qCount = session.messages.filter(m => m.role === 'candidate').length;
+      
+      if (session.status === 'completed') {
+        completedSessions++;
+        if (session.overallScore) {
+          totalScore += session.overallScore;
+          if (session.overallScore > bestScore) bestScore = session.overallScore;
+          
+          scoreTimeline.push({
+            date: session.createdAt,
+            score: session.overallScore,
+            persona: session.companyPersona
+          });
+          
+          if (!personaStats[session.companyPersona]) {
+            personaStats[session.companyPersona] = { count: 0, totalScore: 0 };
+          }
+          personaStats[session.companyPersona].count++;
+          personaStats[session.companyPersona].totalScore += session.overallScore;
+        }
+      }
+
+      return {
+        _id: session._id,
+        companyPersona: session.companyPersona,
+        targetRole: session.targetRole,
+        status: session.status,
+        overallScore: session.overallScore,
+        currentDifficulty: session.currentDifficulty,
+        createdAt: session.createdAt,
+        updatedAt: session.updatedAt,
+        questionCount: qCount
+      };
+    });
+
+    const averageScore = completedSessions > 0 ? Number((totalScore / completedSessions).toFixed(1)) : 0;
+    const personaBreakdown = {};
+    for (const p in personaStats) {
+      personaBreakdown[p] = {
+        count: personaStats[p].count,
+        averageScore: Number((personaStats[p].totalScore / personaStats[p].count).toFixed(1))
+      };
+    }
+
+    const stats = {
+      totalSessions,
+      completedSessions,
+      averageScore,
+      bestScore,
+      scoreTimeline,
+      personaBreakdown
+    };
+
+    res.json({ sessions: formattedSessions, stats });
+  } catch (err) {
+    console.error('Fetch session history error:', err.message);
+    res.status(500).json({ message: 'Server error fetching session history' });
+  }
+});
+
 // @route   GET /api/session/:id
 // @desc    Get session details by ID
 // @access  Private
