@@ -15,7 +15,7 @@ const useSpeech = () => {
   const recognitionRef = useRef(null);
   const shouldRestartRef = useRef(false);
   const silenceTimerRef = useRef(null);
-  const pauseTimerRef = useRef(null);
+  const speakingSafetyTimerRef = useRef(null);
   const finalTranscriptRef = useRef('');
   const isMountedRef = useRef(true);
   const isListeningRef = useRef(false);
@@ -49,6 +49,7 @@ const useSpeech = () => {
   const speak = useCallback((text) => {
     if (!isSupported || !text) return;
 
+    if (speakingSafetyTimerRef.current) clearTimeout(speakingSafetyTimerRef.current);
     window.speechSynthesis.cancel(); // cancel any ongoing speech
 
     const utterance = new SpeechSynthesisUtterance(text);
@@ -60,11 +61,19 @@ const useSpeech = () => {
 
     utterance.onstart = () => {
       if (isMountedRef.current) setIsSpeaking(true);
+      // Safety reset after 15 seconds in case browser fails to fire onend
+      speakingSafetyTimerRef.current = setTimeout(() => {
+        if (isMountedRef.current) setIsSpeaking(false);
+      }, 15000);
     };
+
     utterance.onend = () => {
+      if (speakingSafetyTimerRef.current) clearTimeout(speakingSafetyTimerRef.current);
       if (isMountedRef.current) setIsSpeaking(false);
     };
+
     utterance.onerror = (e) => {
+      if (speakingSafetyTimerRef.current) clearTimeout(speakingSafetyTimerRef.current);
       if (e.error !== 'canceled' && isMountedRef.current) {
         setIsSpeaking(false);
       }
@@ -76,19 +85,16 @@ const useSpeech = () => {
   // TTS: stop speaking
   const stopSpeaking = useCallback(() => {
     if (!isSupported) return;
+    if (speakingSafetyTimerRef.current) clearTimeout(speakingSafetyTimerRef.current);
     window.speechSynthesis.cancel();
     setIsSpeaking(false);
   }, [isSupported]);
 
-  // Clear silence & pause timers
+  // Clear silence timers
   const clearTimers = useCallback(() => {
     if (silenceTimerRef.current) {
       clearTimeout(silenceTimerRef.current);
       silenceTimerRef.current = null;
-    }
-    if (pauseTimerRef.current) {
-      clearTimeout(pauseTimerRef.current);
-      pauseTimerRef.current = null;
     }
   }, []);
 
@@ -118,7 +124,7 @@ const useSpeech = () => {
 
     recognition.onresult = (event) => {
       if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
-      startSilenceTimer(); // Reset overall silence timer
+      startSilenceTimer();
 
       let interimText = '';
       let finalText = finalTranscriptRef.current;
@@ -185,6 +191,7 @@ const useSpeech = () => {
       isMountedRef.current = false;
       shouldRestartRef.current = false;
       clearTimers();
+      if (speakingSafetyTimerRef.current) clearTimeout(speakingSafetyTimerRef.current);
       try { recognition.abort(); } catch (e) { /* ignore */ }
       if (window.speechSynthesis) {
         window.speechSynthesis.cancel();
@@ -253,6 +260,7 @@ const useSpeech = () => {
     startListening,
     stopListening,
     transcript,
+    setTranscript,
     interimTranscript,
     speechDetected,
     resetTranscript,

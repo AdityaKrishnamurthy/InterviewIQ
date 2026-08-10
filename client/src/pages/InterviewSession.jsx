@@ -21,19 +21,16 @@ const InterviewSession = () => {
   const [lastFeedback, setLastFeedback] = useState(null);
   const [voiceMode, setVoiceMode] = useState(false);
   const [voiceState, setVoiceState] = useState('idle'); // idle | listening | processing
-  const [autoSubmitCountdown, setAutoSubmitCountdown] = useState(null);
 
   const { token, logout } = useAuth();
   const navigate = useNavigate();
   const messagesEndRef = useRef(null);
   const prevMessageCountRef = useRef(0);
   const textareaRef = useRef(null);
-  const autoSubmitTimerRef = useRef(null);
-  const countdownIntervalRef = useRef(null);
 
   const {
     speak, stopSpeaking, isSpeaking,
-    startListening, stopListening, transcript, interimTranscript, speechDetected, resetTranscript,
+    startListening, stopListening, transcript, setTranscript, interimTranscript, speechDetected, resetTranscript,
     isListening, error: speechError, setError: setSpeechError,
     isSupported,
   } = useSpeech();
@@ -45,6 +42,13 @@ const InterviewSession = () => {
   useEffect(() => {
     scrollToBottom();
   }, [session?.messages]);
+
+  // Sync transcript changes with answer state
+  useEffect(() => {
+    if (voiceMode && transcript) {
+      setAnswer(transcript);
+    }
+  }, [transcript, voiceMode]);
 
   // Voice mode: auto-read new AI questions
   useEffect(() => {
@@ -69,7 +73,7 @@ const InterviewSession = () => {
           startListening();
           setVoiceState('listening');
         }
-      }, 500);
+      }, 400);
       return () => clearTimeout(timer);
     }
   }, [isSpeaking, voiceMode, session, submitting, voiceState, isListening, resetTranscript, startListening]);
@@ -83,32 +87,20 @@ const InterviewSession = () => {
     }
   }, [isListening, voiceMode, voiceState]);
 
-  // Clear auto-submit timers
-  const clearAutoSubmit = useCallback(() => {
-    if (autoSubmitTimerRef.current) {
-      clearTimeout(autoSubmitTimerRef.current);
-      autoSubmitTimerRef.current = null;
-    }
-    if (countdownIntervalRef.current) {
-      clearInterval(countdownIntervalRef.current);
-      countdownIntervalRef.current = null;
-    }
-    setAutoSubmitCountdown(null);
-  }, []);
-
-  // Keyboard shortcut: Space to toggle listening
+  // Keyboard shortcut: Space to toggle listening when not focused on textarea
   useEffect(() => {
     if (!voiceMode) return;
 
     const handleKeyDown = (e) => {
       if (e.code === 'Space' && e.target.tagName !== 'TEXTAREA' && e.target.tagName !== 'INPUT') {
         e.preventDefault();
+        if (isSpeaking) {
+          stopSpeaking();
+        }
         if (isListening) {
-          clearAutoSubmit();
           stopListening();
           setVoiceState('idle');
         } else {
-          clearAutoSubmit();
           resetTranscript();
           startListening();
           setVoiceState('listening');
@@ -118,7 +110,7 @@ const InterviewSession = () => {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [voiceMode, isListening, startListening, stopListening, resetTranscript, clearAutoSubmit]);
+  }, [voiceMode, isListening, isSpeaking, startListening, stopListening, stopSpeaking, resetTranscript]);
 
   const handleStartSession = async () => {
     setError('');
@@ -154,7 +146,6 @@ const InterviewSession = () => {
 
   const handleSendAnswer = useCallback(async (e, voiceAnswer) => {
     if (e) e.preventDefault();
-    clearAutoSubmit();
     const answerText = voiceAnswer || answer;
     if (!answerText.trim() || submitting || !session) return;
 
@@ -198,63 +189,32 @@ const InterviewSession = () => {
     } finally {
       setSubmitting(false);
     }
-  }, [answer, submitting, session, voiceMode, token, resetTranscript, clearAutoSubmit]);
+  }, [answer, submitting, session, voiceMode, token, resetTranscript]);
 
   const handleVoiceDone = useCallback(() => {
-    clearAutoSubmit();
     stopListening();
+    stopSpeaking();
     setVoiceState('processing');
-    const finalAnswer = transcript.trim();
+    const finalAnswer = answer.trim();
     if (finalAnswer) {
       handleSendAnswer(null, finalAnswer);
     } else {
       setVoiceState('idle');
     }
-  }, [stopListening, transcript, handleSendAnswer, clearAutoSubmit]);
-
-  // Auto-pause detection: when user stops speaking for 3.5s after speech is detected
-  useEffect(() => {
-    if (!voiceMode || !isListening || !speechDetected || !transcript.trim()) {
-      clearAutoSubmit();
-      return;
-    }
-
-    // Reset countdown on new speech input
-    clearAutoSubmit();
-
-    // Set a 3-second auto-submit timer after last speech input
-    let count = 3;
-    setAutoSubmitCountdown(count);
-
-    countdownIntervalRef.current = setInterval(() => {
-      count -= 1;
-      if (count > 0) {
-        setAutoSubmitCountdown(count);
-      } else {
-        clearInterval(countdownIntervalRef.current);
-        countdownIntervalRef.current = null;
-        setAutoSubmitCountdown(null);
-        handleVoiceDone();
-      }
-    }, 1000);
-
-    return () => {
-      clearAutoSubmit();
-    };
-  }, [transcript, interimTranscript, voiceMode, isListening, speechDetected, handleVoiceDone, clearAutoSubmit]);
+  }, [stopListening, stopSpeaking, answer, handleSendAnswer]);
 
   const handleVoiceReset = useCallback(() => {
-    clearAutoSubmit();
     stopListening();
+    stopSpeaking();
+    setAnswer('');
     resetTranscript();
     setVoiceState('idle');
-  }, [stopListening, resetTranscript, clearAutoSubmit]);
+  }, [stopListening, stopSpeaking, resetTranscript]);
 
   const toggleVoiceMode = () => {
     if (!isSupported) return;
     const newMode = !voiceMode;
     setVoiceMode(newMode);
-    clearAutoSubmit();
     if (!newMode) {
       stopListening();
       stopSpeaking();
@@ -273,8 +233,6 @@ const InterviewSession = () => {
         return { bg: 'rgba(255, 179, 71, 0.15)', color: 'var(--warning)', border: 'var(--warning)', text: 'Medium' };
     }
   };
-
-  const wordCount = transcript.trim() ? transcript.trim().split(/\s+/).length : 0;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
@@ -299,19 +257,20 @@ const InterviewSession = () => {
         {/* Speech error alerts */}
         {speechError === 'not-allowed' && (
           <div className="alert-error" style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
-            <span>🎤 Microphone access denied. Please allow microphone access in your browser settings.</span>
+            <span>🎤 Microphone access denied. Please check microphone permissions in your browser.</span>
             <button
               onClick={() => { setSpeechError(''); startListening(); }}
               className="btn btn-secondary"
               style={{ width: 'auto', padding: '0.35rem 0.75rem', fontSize: '0.8rem', whiteSpace: 'nowrap' }}
             >
-              Retry
+              Retry Mic
             </button>
           </div>
         )}
         {speechError === 'no-speech-timeout' && (
-          <div className="alert-error" style={{ marginBottom: '1rem' }}>
-            🔇 No speech detected. Tap the mic to start speaking your answer.
+          <div className="alert-error" style={{ marginBottom: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span>🔇 No speech detected. Tap mic or type below.</span>
+            <button onClick={() => setSpeechError('')} style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer' }}>✕</button>
           </div>
         )}
 
@@ -416,7 +375,7 @@ const InterviewSession = () => {
                 </h3>
               </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                 {/* Voice Mode Toggle */}
                 <button
                   onClick={toggleVoiceMode}
@@ -424,12 +383,12 @@ const InterviewSession = () => {
                   disabled={!isSupported}
                   title={!isSupported ? 'Voice mode requires Chrome, Edge, or Safari' : (voiceMode ? 'Switch to Text Mode' : 'Switch to Voice Mode')}
                 >
-                  {voiceMode ? '🎤 Voice' : '⌨️ Text'}
+                  {voiceMode ? '🎤 Voice Mode' : '⌨️ Text Mode'}
                 </button>
 
                 {voiceMode && (
                   <span className="voice-indicator">
-                    {isSpeaking ? '🔊 Speaking...' : isListening ? '🎙️ Recording...' : '🎤 Voice Active'}
+                    {isSpeaking ? '🔊 AI Speaking...' : isListening ? '🎙️ Recording...' : '🎤 Ready'}
                   </span>
                 )}
 
@@ -480,7 +439,6 @@ const InterviewSession = () => {
                     try {
                       setSubmitting(true);
                       if (voiceMode) {
-                        clearAutoSubmit();
                         stopListening();
                         stopSpeaking();
                       }
@@ -539,8 +497,8 @@ const InterviewSession = () => {
             <div
               style={{
                 flex: 1,
-                minHeight: '380px',
-                maxHeight: '520px',
+                minHeight: '340px',
+                maxHeight: '480px',
                 overflowY: 'auto',
                 background: 'var(--bg-surface)',
                 border: '1px solid var(--border-color)',
@@ -622,24 +580,27 @@ const InterviewSession = () => {
 
             {/* Answer Input Controls */}
             {voiceMode ? (
-              /* Voice Mode Input */
-              <div className="voice-input-area">
-                {/* Mic Button */}
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
+              /* Voice Mode Input Panel */
+              <div className="voice-input-area" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '1.5rem', width: '100%' }}>
+                  {/* Mic Button */}
                   <button
+                    type="button"
                     className={`mic-button ${isListening ? 'listening' : ''} ${isSpeaking ? 'speaking' : ''}`}
                     onClick={() => {
+                      if (isSpeaking) {
+                        stopSpeaking();
+                      }
                       if (isListening) {
                         handleVoiceDone();
                       } else {
                         setSpeechError('');
-                        clearAutoSubmit();
                         resetTranscript();
                         startListening();
                         setVoiceState('listening');
                       }
                     }}
-                    disabled={submitting || isSpeaking}
+                    disabled={submitting}
                   >
                     {voiceState === 'processing' ? (
                       <span style={{ fontSize: '1.5rem' }}>⏳</span>
@@ -651,93 +612,70 @@ const InterviewSession = () => {
                       <span style={{ fontSize: '1.8rem' }}>🎤</span>
                     )}
                   </button>
+                </div>
 
-                  <div style={{ textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
-                    {voiceState === 'processing' ? (
-                      'Submitting answer...'
-                    ) : isListening ? (
-                      speechDetected ? (
-                        <span style={{ color: 'var(--success)', fontWeight: 600 }}>🎙️ Capturing your voice live...</span>
-                      ) : (
-                        <span style={{ color: 'var(--error)' }}>Listening... start speaking</span>
-                      )
-                    ) : isSpeaking ? (
-                      <span style={{ color: 'var(--primary)' }}>AI is speaking...</span>
+                <div style={{ textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+                  {voiceState === 'processing' ? (
+                    'Submitting answer...'
+                  ) : isListening ? (
+                    speechDetected ? (
+                      <span style={{ color: 'var(--success)', fontWeight: 600 }}>🎙️ Capturing your answer live...</span>
                     ) : (
-                      'Tap mic or press Space to record your answer'
-                    )}
-                  </div>
-
-                  {/* Auto-submit countdown alert when user stops speaking */}
-                  {autoSubmitCountdown !== null && (
-                    <div style={{
-                      fontSize: '0.85rem',
-                      fontWeight: 600,
-                      color: 'var(--warning)',
-                      background: 'rgba(255, 179, 71, 0.15)',
-                      border: '1px solid var(--warning)',
-                      padding: '0.35rem 1rem',
-                      borderRadius: '20px',
-                    }}>
-                      ⏱️ Silence detected — auto-submitting in {autoSubmitCountdown}s...
-                    </div>
-                  )}
-
-                  {/* Keyboard shortcut hint */}
-                  <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-                    Press <kbd style={{ padding: '0.1rem 0.4rem', borderRadius: '3px', background: 'var(--bg-surface)', border: '1px solid var(--border-color)' }}>Space</kbd> or click <strong>Done</strong> when finished
-                  </div>
-                </div>
-
-                {/* Live Transcript Preview */}
-                <div className="voice-transcript-preview">
-                  {transcript ? (
-                    <div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.35rem', fontSize: '0.75rem', color: 'var(--secondary)' }}>
-                        <span>💬 Live Transcript Captured</span>
-                        <span>{wordCount} words ({transcript.length} chars)</span>
-                      </div>
-                      <div style={{ color: 'var(--text-primary)', fontStyle: 'normal' }}>
-                        {transcript}
-                        {interimTranscript && (
-                          <span style={{ color: 'var(--text-secondary)', opacity: 0.7 }}> {interimTranscript}</span>
-                        )}
-                      </div>
-                    </div>
+                      <span style={{ color: 'var(--error)' }}>Listening... speak into microphone</span>
+                    )
+                  ) : isSpeaking ? (
+                    <span style={{ color: 'var(--primary)' }}>AI is speaking (tap mic to skip)...</span>
                   ) : (
-                    <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>
-                      {isListening ? 'Speak into your microphone...' : 'Recorded text will appear here in real time.'}
-                    </span>
+                    'Tap mic or press Space to record'
                   )}
                 </div>
 
-                {/* Long answer warning */}
-                {transcript.length > 2000 && (
-                  <div style={{ color: 'var(--warning)', fontSize: '0.8rem', textAlign: 'center' }}>
-                    ⚠️ Answer is getting long — consider wrapping up.
+                {/* Response Text Area (Voice + Editable Text) */}
+                <div style={{ width: '100%' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.35rem', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                    <span>Answer Input (Captured Speech / Typed Text):</span>
+                    {answer && <span>{answer.trim().split(/\s+/).length} words</span>}
                   </div>
-                )}
+                  <textarea
+                    ref={textareaRef}
+                    className="form-input"
+                    rows={3}
+                    value={answer}
+                    onChange={(e) => {
+                      setAnswer(e.target.value);
+                      setTranscript(e.target.value);
+                    }}
+                    placeholder={isListening ? "Listening... spoken text will appear here. You can also edit or type manually." : "Spoken or typed response will appear here. Tap mic or type manually..."}
+                    disabled={submitting}
+                    style={{ resize: 'vertical' }}
+                  />
+                  {interimTranscript && (
+                    <div style={{ fontSize: '0.8rem', color: 'var(--secondary)', marginTop: '0.25rem' }}>
+                      ⚡ Live speech stream: <em>{interimTranscript}</em>
+                    </div>
+                  )}
+                </div>
 
                 {/* Voice action buttons */}
-                {(isListening || transcript) && (
-                  <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center' }}>
-                    <button
-                      onClick={handleVoiceReset}
-                      className="btn btn-secondary"
-                      style={{ width: 'auto', padding: '0.5rem 1.25rem', fontSize: '0.85rem' }}
-                    >
-                      🔄 Reset / Re-record
-                    </button>
-                    <button
-                      onClick={handleVoiceDone}
-                      className="btn btn-primary"
-                      disabled={!transcript.trim() || submitting}
-                      style={{ width: 'auto', padding: '0.5rem 1.25rem', fontSize: '0.85rem' }}
-                    >
-                      ✓ Submit Answer →
-                    </button>
-                  </div>
-                )}
+                <div style={{ display: 'flex', gap: '0.75rem', width: '100%', justifyContent: 'flex-end' }}>
+                  <button
+                    type="button"
+                    onClick={handleVoiceReset}
+                    className="btn btn-secondary"
+                    style={{ width: 'auto', padding: '0.6rem 1.25rem', fontSize: '0.85rem' }}
+                  >
+                    🔄 Clear
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleSendAnswer(null, answer)}
+                    className="btn btn-primary"
+                    disabled={!answer.trim() || submitting}
+                    style={{ width: 'auto', padding: '0.6rem 1.75rem', fontSize: '0.85rem' }}
+                  >
+                    {submitting ? 'Analyzing...' : 'Submit Answer →'}
+                  </button>
+                </div>
               </div>
             ) : (
               /* Text Mode Input */
