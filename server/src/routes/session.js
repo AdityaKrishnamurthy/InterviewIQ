@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const crypto = require('crypto');
+const mongoose = require('mongoose');
 
 const authMiddleware = require('../middleware/auth');
 const { sessionStore, resumeStore } = require('../db');
@@ -181,6 +182,9 @@ router.post('/answer', authMiddleware, async (req, res) => {
 // @access  Private
 router.post('/:id/complete', authMiddleware, async (req, res) => {
   try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ message: 'Invalid session ID' });
+    }
     const session = await sessionStore.findByIdAndUserId(req.params.id, req.user.id);
 
     if (!session) {
@@ -229,6 +233,9 @@ router.post('/:id/complete', authMiddleware, async (req, res) => {
 // @access  Private
 router.get('/:id/report', authMiddleware, async (req, res) => {
   try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ message: 'Invalid session ID' });
+    }
     const session = await sessionStore.findByIdAndUserId(req.params.id, req.user.id);
 
     if (!session) {
@@ -358,6 +365,9 @@ router.get('/history', authMiddleware, async (req, res) => {
 // @access  Private
 router.get('/:id', authMiddleware, async (req, res) => {
   try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ message: 'Invalid session ID' });
+    }
     const session = await sessionStore.findByIdAndUserId(req.params.id, req.user.id);
     if (!session) {
       return res.status(404).json({ message: 'Session not found' });

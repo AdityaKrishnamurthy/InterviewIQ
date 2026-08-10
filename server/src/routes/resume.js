@@ -48,13 +48,24 @@ router.post('/upload', authMiddleware, upload.single('resume'), async (req, res)
 
     if (req.file) {
       originalFilename = req.file.originalname;
-      const fileBuffer = fs.readFileSync(req.file.path);
       try {
-        const pdfData = await pdfParse(fileBuffer);
-        extractedText = pdfData.text || '';
-      } catch (pdfErr) {
-        console.warn('PDF parsing fallback:', pdfErr.message);
-        extractedText = fileBuffer.toString('utf-8');
+        const fileBuffer = fs.readFileSync(req.file.path);
+        try {
+          const pdfData = await pdfParse(fileBuffer);
+          extractedText = pdfData.text || '';
+        } catch (pdfErr) {
+          console.warn('PDF parsing fallback:', pdfErr.message);
+          extractedText = fileBuffer.toString('utf-8');
+        }
+      } finally {
+        // Clean up temp file from uploads directory after reading
+        try {
+          if (fs.existsSync(req.file.path)) {
+            fs.unlinkSync(req.file.path);
+          }
+        } catch (e) {
+          /* ignore unlink error */
+        }
       }
     } else if (req.body.text) {
       // Fallback text input if raw text sent directly
@@ -89,6 +100,9 @@ router.post('/upload', authMiddleware, upload.single('resume'), async (req, res)
       },
     });
   } catch (err) {
+    if (req.file && fs.existsSync(req.file.path)) {
+      try { fs.unlinkSync(req.file.path); } catch (e) { /* ignore */ }
+    }
     console.error('Resume upload error:', err.message);
     res.status(500).json({ message: err.message || 'Server error during resume processing' });
   }

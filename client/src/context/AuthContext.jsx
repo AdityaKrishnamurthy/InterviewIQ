@@ -39,6 +39,7 @@ export const AuthProvider = ({ children }) => {
         }
       } catch (err) {
         console.error('Error verifying auth token:', err);
+        setUser(null);
       } finally {
         setLoading(false);
       }
