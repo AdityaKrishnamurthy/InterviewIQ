@@ -8,17 +8,27 @@ const useSpeech = () => {
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [transcript, setTranscript] = useState('');
+  const [interimTranscript, setInterimTranscript] = useState('');
   const [error, setError] = useState('');
+  const [speechDetected, setSpeechDetected] = useState(false);
 
   const recognitionRef = useRef(null);
   const shouldRestartRef = useRef(false);
   const silenceTimerRef = useRef(null);
+  const pauseTimerRef = useRef(null);
   const finalTranscriptRef = useRef('');
   const isMountedRef = useRef(true);
+  const isListeningRef = useRef(false);
 
   const isSupported = typeof window !== 'undefined'
     && !!SpeechRecognitionAPI
     && !!window.speechSynthesis;
+
+  // Sync ref with state
+  const updateListeningState = (val) => {
+    isListeningRef.current = val;
+    if (isMountedRef.current) setIsListening(val);
+  };
 
   // Pick the best English voice
   const getVoice = useCallback(() => {
@@ -70,28 +80,32 @@ const useSpeech = () => {
     setIsSpeaking(false);
   }, [isSupported]);
 
-  // Clear silence timer
-  const clearSilenceTimer = useCallback(() => {
+  // Clear silence & pause timers
+  const clearTimers = useCallback(() => {
     if (silenceTimerRef.current) {
       clearTimeout(silenceTimerRef.current);
       silenceTimerRef.current = null;
     }
+    if (pauseTimerRef.current) {
+      clearTimeout(pauseTimerRef.current);
+      pauseTimerRef.current = null;
+    }
   }, []);
 
-  // Start silence timer (15s)
+  // Start silence timer (if no speech at all for 15s)
   const startSilenceTimer = useCallback(() => {
-    clearSilenceTimer();
+    if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
     silenceTimerRef.current = setTimeout(() => {
-      if (isMountedRef.current && isListening) {
+      if (isMountedRef.current && isListeningRef.current) {
         shouldRestartRef.current = false;
         if (recognitionRef.current) {
           try { recognitionRef.current.stop(); } catch (e) { /* ignore */ }
         }
-        setIsListening(false);
+        updateListeningState(false);
         setError('no-speech-timeout');
       }
     }, 15000);
-  }, [clearSilenceTimer, isListening]);
+  }, []);
 
   // Initialize recognition
   useEffect(() => {
@@ -103,8 +117,8 @@ const useSpeech = () => {
     recognition.lang = 'en-US';
 
     recognition.onresult = (event) => {
-      clearSilenceTimer();
-      startSilenceTimer(); // Reset silence timer on any result
+      if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+      startSilenceTimer(); // Reset overall silence timer
 
       let interimText = '';
       let finalText = finalTranscriptRef.current;
@@ -119,27 +133,31 @@ const useSpeech = () => {
         }
       }
 
+      const fullText = (finalText + interimText).trim();
+
       if (isMountedRef.current) {
-        setTranscript((finalText + interimText).trim());
+        setTranscript(fullText);
+        setInterimTranscript(interimText);
+        if (fullText.length > 0) {
+          setSpeechDetected(true);
+        }
       }
     };
 
     recognition.onerror = (event) => {
       if (!isMountedRef.current) return;
 
-      // Ignore 'aborted' errors (triggered by our own stop calls)
       if (event.error === 'aborted') return;
 
       if (event.error === 'not-allowed') {
         setError('not-allowed');
-        setIsListening(false);
+        updateListeningState(false);
         shouldRestartRef.current = false;
       } else if (event.error === 'no-speech') {
-        // Chrome fires this after silence — don't treat as fatal
-        // The silence timer will handle it
+        // Handled by silence timer
       } else if (event.error === 'network') {
         setError('network');
-        setIsListening(false);
+        updateListeningState(false);
         shouldRestartRef.current = false;
       } else {
         setError(event.error);
@@ -147,19 +165,17 @@ const useSpeech = () => {
     };
 
     recognition.onend = () => {
-      // Auto-restart if it stopped unexpectedly (Chrome ~60s timeout)
       if (shouldRestartRef.current && isMountedRef.current) {
         try {
           recognition.start();
         } catch (e) {
-          // If restart fails, mark as not listening
           if (isMountedRef.current) {
-            setIsListening(false);
+            updateListeningState(false);
             shouldRestartRef.current = false;
           }
         }
       } else if (isMountedRef.current) {
-        setIsListening(false);
+        updateListeningState(false);
       }
     };
 
@@ -168,7 +184,7 @@ const useSpeech = () => {
     return () => {
       isMountedRef.current = false;
       shouldRestartRef.current = false;
-      clearSilenceTimer();
+      clearTimers();
       try { recognition.abort(); } catch (e) { /* ignore */ }
       if (window.speechSynthesis) {
         window.speechSynthesis.cancel();
@@ -182,20 +198,22 @@ const useSpeech = () => {
 
     setError('');
     finalTranscriptRef.current = '';
+    setTranscript('');
+    setInterimTranscript('');
+    setSpeechDetected(false);
     shouldRestartRef.current = true;
 
     try {
       recognitionRef.current.start();
-      setIsListening(true);
+      updateListeningState(true);
       startSilenceTimer();
     } catch (e) {
-      // Already started — try aborting and restarting
       try {
         recognitionRef.current.abort();
         setTimeout(() => {
           try {
             recognitionRef.current.start();
-            setIsListening(true);
+            updateListeningState(true);
             startSilenceTimer();
           } catch (e2) {
             setError('start-failed');
@@ -210,17 +228,19 @@ const useSpeech = () => {
   // STT: stop listening
   const stopListening = useCallback(() => {
     shouldRestartRef.current = false;
-    clearSilenceTimer();
+    clearTimers();
     if (recognitionRef.current) {
       try { recognitionRef.current.stop(); } catch (e) { /* ignore */ }
     }
-    setIsListening(false);
-  }, [clearSilenceTimer]);
+    updateListeningState(false);
+  }, [clearTimers]);
 
   // STT: reset transcript
   const resetTranscript = useCallback(() => {
     setTranscript('');
+    setInterimTranscript('');
     finalTranscriptRef.current = '';
+    setSpeechDetected(false);
     setError('');
   }, []);
 
@@ -233,6 +253,8 @@ const useSpeech = () => {
     startListening,
     stopListening,
     transcript,
+    interimTranscript,
+    speechDetected,
     resetTranscript,
     isListening,
     // Shared
