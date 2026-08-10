@@ -1,6 +1,5 @@
 # Agent & planning docs (not for version control)
 .agents/
-plans/
 AGENTS.md
 DESIGN.md
 PRD.md
