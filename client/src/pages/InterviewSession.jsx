@@ -34,7 +34,7 @@ const InterviewSession = () => {
     interimTranscript, speechDetected,
     resetTranscript, isListening,
     error: speechError, setError: setSpeechError,
-    isSupported,
+    isSttSupported, isTtsSupported,
   } = useSpeech();
 
   /* ── scroll ── */
@@ -44,24 +44,26 @@ const InterviewSession = () => {
 
   /* ── mirror STT transcript → answer textarea (voice mode only) ── */
   useEffect(() => {
-    if (voiceMode) setAnswer(transcript);
-  }, [transcript]);                           // intentionally omit voiceMode
+    if (voiceMode && transcript) {
+      setAnswer(transcript);
+    }
+  }, [transcript, voiceMode]);
 
   /* ── auto-read new AI question via TTS ── */
   useEffect(() => {
-    if (!voiceMode || !session?.messages) return;
+    if (!voiceMode || !session?.messages || !isTtsSupported) return;
     const count = session.messages.length;
     if (count > prevMsgCountRef.current) {
       const last = session.messages[count - 1];
       if (last.role === 'interviewer') speak(last.content);
     }
     prevMsgCountRef.current = count;
-  }, [session?.messages, voiceMode, speak]);
+  }, [session?.messages, voiceMode, speak, isTtsSupported]);
 
   /* ── Space bar toggle (not in textarea / input) ── */
   useEffect(() => {
     if (!voiceMode) return;
-    const onKey = (e) => {
+    const onKey = async (e) => {
       if (e.code !== 'Space') return;
       if (['TEXTAREA', 'INPUT'].includes(e.target.tagName)) return;
       e.preventDefault();
@@ -71,7 +73,7 @@ const InterviewSession = () => {
         if (isSpeaking) stopSpeaking();
         resetTranscript();
         setAnswer('');
-        startListening();
+        await startListening();
       }
     };
     window.addEventListener('keydown', onKey);
@@ -101,7 +103,7 @@ const InterviewSession = () => {
 
   const handleSendAnswer = useCallback(async (e, override) => {
     if (e) e.preventDefault();
-    const text = (override ?? answer).trim();
+    const text = (override ?? answer ?? transcript).trim();
     if (!text || submitting || !session) return;
 
     setError('');
@@ -126,7 +128,7 @@ const InterviewSession = () => {
     } finally {
       setSubmitting(false);
     }
-  }, [answer, submitting, session, voiceMode, token, resetTranscript, stopListening]);
+  }, [answer, transcript, submitting, session, voiceMode, token, resetTranscript, stopListening]);
 
   const toggleVoiceMode = () => {
     const next = !voiceMode;
@@ -139,14 +141,14 @@ const InterviewSession = () => {
     setVoiceMode(next);
   };
 
-  const handleMicClick = () => {
+  const handleMicClick = async () => {
     if (isListening) {
       stopListening();
     } else {
       if (isSpeaking) stopSpeaking();
       resetTranscript();
       setAnswer('');
-      startListening();
+      await startListening();
     }
   };
 
@@ -261,8 +263,8 @@ const InterviewSession = () => {
                 {/* Voice toggle */}
                 <button onClick={toggleVoiceMode}
                   className={`voice-toggle-btn ${voiceMode ? 'active' : ''}`}
-                  disabled={!isSupported}
-                  title={!isSupported ? 'Voice requires Chrome/Edge/Safari' : undefined}>
+                  disabled={!isSttSupported}
+                  title={!isSttSupported ? 'Voice mode requires Chrome, Edge, or Safari' : undefined}>
                   {voiceMode ? '🎤 Voice Mode' : '⌨️ Text Mode'}
                 </button>
 
