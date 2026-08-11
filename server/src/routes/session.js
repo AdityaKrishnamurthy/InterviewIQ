@@ -290,7 +290,7 @@ router.get('/:id/report', authMiddleware, async (req, res) => {
 // @access  Private
 router.get('/history', authMiddleware, async (req, res) => {
   try {
-    const sessions = await Session.find({ userId: req.user.id }).sort({ createdAt: 1 });
+    const sessions = await sessionStore.findByUserId(req.user.id);
     
     let totalSessions = sessions.length;
     let completedSessions = 0;
