@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import ThemeToggle from '../components/ThemeToggle';
+import Logo from '../components/Logo';
 
 const ResumeUpload = () => {
   const [file, setFile] = useState(null);
@@ -117,13 +119,12 @@ const ResumeUpload = () => {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
       <header className="navbar">
-        <Link to="/dashboard" className="auth-brand" style={{ marginBottom: 0 }}>
-          Interview<span>IQ</span>
-        </Link>
+        <Logo to="/dashboard" />
         <div className="nav-user">
           <button onClick={() => navigate('/dashboard')} className="btn btn-secondary">
             Dashboard
           </button>
+          <ThemeToggle />
           <button onClick={logout} className="btn btn-secondary">
             Sign Out
           </button>

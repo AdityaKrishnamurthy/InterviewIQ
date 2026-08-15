@@ -3,6 +3,8 @@ import { useAuth } from '../context/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
 import ScoreTrendChart from '../components/ScoreTrendChart';
 import SessionHistoryList from '../components/SessionHistoryList';
+import ThemeToggle from '../components/ThemeToggle';
+import Logo from '../components/Logo';
 
 const STAT_ICONS = ['📊', '✅', '⭐', '🏆'];
 
@@ -44,11 +46,10 @@ const Dashboard = () => {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
       <header className="navbar">
-        <Link to="/dashboard" className="auth-brand" style={{ marginBottom: 0 }}>
-          Interview<span>IQ</span>
-        </Link>
+        <Logo to="/dashboard" />
         <div className="nav-user">
           <span className="nav-user-name">Welcome, {user?.name || 'Candidate'}</span>
+          <ThemeToggle />
           <button onClick={logout} className="btn btn-secondary">
             Sign Out
           </button>
@@ -130,7 +131,7 @@ const Dashboard = () => {
             {/* Session History List */}
             <div className="dashboard-section fade-in-up" style={{ animationDelay: '550ms' }}>
               <h3 className="section-heading">📋 Past Sessions</h3>
-              <SessionHistoryList sessions={[...sessions].reverse()} />
+              <SessionHistoryList sessions={sessions} />
             </div>
           </>
         )}

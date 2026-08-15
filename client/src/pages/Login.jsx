@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import ThemeToggle from '../components/ThemeToggle';
+import Logo from '../components/Logo';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -18,14 +20,15 @@ const Login = () => {
     e.preventDefault();
     setError('');
 
-    if (!email || !password) {
+    const cleanEmail = email.trim();
+    if (!cleanEmail || !password) {
       setError('Please fill in all fields');
       return;
     }
 
     try {
       setSubmitting(true);
-      await login(email, password);
+      await login(cleanEmail, password);
       navigate(from, { replace: true });
     } catch (err) {
       setError(err.message || 'Failed to sign in. Please check your credentials.');
@@ -35,12 +38,15 @@ const Login = () => {
   };
 
   return (
-    <div className="auth-container">
+    <div className="auth-container" style={{ position: 'relative' }}>
+      <div className="theme-floating-toggle">
+        <ThemeToggle />
+      </div>
       <div className="auth-card">
         <div className="auth-header">
-          <Link to="/" className="auth-brand">
-            Interview<span>IQ</span>
-          </Link>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1.25rem' }}>
+            <Logo size={36} to="/login" />
+          </div>
           <h1 className="auth-title">Welcome Back</h1>
           <p className="auth-subtitle">Sign in to continue your technical interview prep</p>
         </div>

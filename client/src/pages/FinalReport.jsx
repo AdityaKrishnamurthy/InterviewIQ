@@ -1,17 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import ThemeToggle from '../components/ThemeToggle';
+import Logo from '../components/Logo';
 
 const ScoreRing = ({ score }) => {
+  const safeScore = typeof score === 'number' && !isNaN(score) ? Math.max(0, Math.min(100, Math.round(score))) : 0;
   const radius = 70;
   const stroke = 12;
   const normalizedRadius = radius - stroke * 0.5;
   const circumference = normalizedRadius * 2 * Math.PI;
-  const strokeDashoffset = circumference - (score / 100) * circumference;
+  const strokeDashoffset = circumference - (safeScore / 100) * circumference;
 
   let strokeColor = 'var(--secondary)'; // > 80%
-  if (score < 60) strokeColor = 'var(--error)';
-  else if (score < 80) strokeColor = 'var(--warning)';
+  if (safeScore < 60) strokeColor = 'var(--error)';
+  else if (safeScore < 80) strokeColor = 'var(--warning)';
 
   return (
     <div style={{ position: 'relative', width: radius * 2, height: radius * 2, margin: '0 auto' }}>
@@ -50,7 +53,7 @@ const ScoreRing = ({ score }) => {
         }}
       >
         <span style={{ fontSize: '2.2rem', fontWeight: 800, color: 'var(--text-primary)', lineHeight: 1 }}>
-          {score}%
+          {safeScore}%
         </span>
         <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
           Confidence Score
@@ -150,9 +153,7 @@ const FinalReport = () => {
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
       {/* Header */}
       <header className="navbar no-print">
-        <Link to="/dashboard" className="auth-brand" style={{ marginBottom: 0 }}>
-          Interview<span>IQ</span>
-        </Link>
+        <Logo to="/dashboard" />
         <div className="nav-user">
           <button onClick={handlePrint} className="btn btn-secondary">
             🖨️ Export PDF
@@ -160,6 +161,7 @@ const FinalReport = () => {
           <button onClick={() => navigate('/interview')} className="btn btn-primary" style={{ width: 'auto' }}>
             New Session →
           </button>
+          <ThemeToggle />
           <button onClick={logout} className="btn btn-secondary">
             Sign Out
           </button>

@@ -2,12 +2,14 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import useSpeech from '../hooks/useSpeech';
+import ThemeToggle from '../components/ThemeToggle';
+import Logo from '../components/Logo';
 
 const PERSONAS_LIST = [
-  { id: 'Google',  title: 'Google Persona',  tag: 'Algorithms & Complexity', desc: 'LeetCode, DSA, Big-O trade-offs, and edge case rigor.' },
-  { id: 'Amazon',  title: 'Amazon Persona',  tag: 'Leadership & STAR',        desc: 'Behavioral questions, STAR method, customer obsession & system scalability.' },
-  { id: 'Startup', title: 'Startup Persona', tag: 'Systems & Projects',       desc: 'Architecture, project deep-dives, production trade-offs, and rapid execution.' },
-  { id: 'General', title: 'General Persona', tag: 'Full-Stack Technical',     desc: 'Balanced CS fundamentals, web dev, and code review.' },
+  { id: 'Google',  title: 'Google Persona',  icon: '🔍', color: '#4285F4', tag: 'Algorithms & Big-O', desc: 'LeetCode, DSA, algorithmic complexity, and edge case rigor.' },
+  { id: 'Amazon',  title: 'Amazon Persona',  icon: '📦', color: '#FF9900', tag: 'Leadership & STAR',    desc: 'Behavioral questions, STAR method, customer obsession & system scalability.' },
+  { id: 'Startup', title: 'Startup Persona', icon: '🚀', color: '#00D4AA', tag: 'Systems & Velocity',   desc: 'Architecture, project deep-dives, production trade-offs, and rapid delivery.' },
+  { id: 'General', title: 'General Persona', icon: '💻', color: '#6C63FF', tag: 'Full-Stack Technical', desc: 'Balanced CS fundamentals, web development, and code reviews.' },
 ];
 
 const InterviewSession = () => {
@@ -164,11 +166,10 @@ const InterviewSession = () => {
 
       {/* Navbar */}
       <header className="navbar">
-        <Link to="/dashboard" className="auth-brand" style={{ marginBottom: 0 }}>
-          Interview<span>IQ</span>
-        </Link>
+        <Logo to="/dashboard" />
         <div className="nav-user">
           <button onClick={() => navigate('/resume')} className="btn btn-secondary">Resume Specs</button>
+          <ThemeToggle />
           <button onClick={logout} className="btn btn-secondary">Sign Out</button>
         </div>
       </header>
@@ -219,17 +220,21 @@ const InterviewSession = () => {
                   return (
                     <div key={p.id} onClick={() => setSelectedPersona(p.id)} style={{
                       padding: '1.25rem', borderRadius: 'var(--radius-md)', cursor: 'pointer',
-                      background: sel ? 'rgba(108,99,255,.12)' : 'var(--bg-main)',
-                      border: sel ? '2px solid var(--primary)' : '1px solid var(--border-color)',
+                      background: sel ? `rgba(108,99,255,.12)` : 'var(--bg-main)',
+                      border: sel ? `2px solid ${p.color}` : '1px solid var(--border-color)',
+                      boxShadow: sel ? `0 0 16px rgba(108, 99, 255, 0.2)` : 'none',
                       transition: 'all .2s ease',
                     }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                        <h4 style={{ fontSize: '1.1rem', fontWeight: 600, color: 'var(--text-primary)' }}>{p.title}</h4>
-                        <span style={{ fontSize: '0.75rem', padding: '0.15rem 0.5rem', borderRadius: '4px',
-                          background: sel ? 'var(--primary)' : 'var(--bg-surface)',
-                          color: sel ? '#FFF' : 'var(--text-secondary)' }}>{p.tag}</span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <span style={{ fontSize: '1.2rem' }}>{p.icon}</span>
+                          <h4 style={{ fontSize: '1.05rem', fontWeight: 600, color: 'var(--text-primary)' }}>{p.title}</h4>
+                        </div>
+                        <span style={{ fontSize: '0.72rem', padding: '0.15rem 0.5rem', borderRadius: '12px',
+                          background: sel ? p.color : 'var(--bg-surface)',
+                          color: sel ? '#FFF' : 'var(--text-secondary)', fontWeight: 600 }}>{p.tag}</span>
                       </div>
-                      <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>{p.desc}</p>
+                      <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', lineHeight: 1.5 }}>{p.desc}</p>
                     </div>
                   );
                 })}

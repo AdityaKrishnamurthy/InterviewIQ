@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import ThemeToggle from '../components/ThemeToggle';
+import Logo from '../components/Logo';
 
 const Register = () => {
   const [name, setName] = useState('');
@@ -17,7 +19,10 @@ const Register = () => {
     e.preventDefault();
     setError('');
 
-    if (!name || !email || !password || !confirmPassword) {
+    const cleanName = name.trim();
+    const cleanEmail = email.trim();
+
+    if (!cleanName || !cleanEmail || !password || !confirmPassword) {
       setError('Please fill in all required fields');
       return;
     }
@@ -34,7 +39,7 @@ const Register = () => {
 
     try {
       setSubmitting(true);
-      await register(name, email, password);
+      await register(cleanName, cleanEmail, password);
       navigate('/dashboard', { replace: true });
     } catch (err) {
       setError(err.message || 'Registration failed. Please try again.');
@@ -44,12 +49,15 @@ const Register = () => {
   };
 
   return (
-    <div className="auth-container">
+    <div className="auth-container" style={{ position: 'relative' }}>
+      <div className="theme-floating-toggle">
+        <ThemeToggle />
+      </div>
       <div className="auth-card">
         <div className="auth-header">
-          <Link to="/" className="auth-brand">
-            Interview<span>IQ</span>
-          </Link>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1.25rem' }}>
+            <Logo size={36} to="/register" />
+          </div>
           <h1 className="auth-title">Create Account</h1>
           <p className="auth-subtitle">Start your adaptive AI technical interview session</p>
         </div>
