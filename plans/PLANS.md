@@ -17,7 +17,7 @@ Tracks the status of every plan in `plans/`. Update this table as work progresse
 | 011  | Timed Interview Mode | Not started | |
 | 012  | Session Replay / Transcript View | Not started | |
 | 013  | Custom Company Personas | Not started | |
-| 014  | Dark / Light Theme Toggle | Not started | |
+| 014  | Dark / Light Theme Toggle | Done | |
 
 **Status values:** `Not started` · `In progress` · `Blocked` · `Done`
 
