@@ -41,8 +41,24 @@ const upload = multer({
 // @route   POST /api/resume/upload
 // @desc    Upload PDF resume, parse with Gemini AI, save extracted skills/projects
 // @access  Private
-router.post('/upload', authMiddleware, upload.single('resume'), async (req, res) => {
+router.post(
+  '/upload',
+  authMiddleware,
+  (req, res, next) => {
+    const ct = req.headers['content-type'] || '';
+    if (ct.includes('application/json')) {
+      return next();
+    }
+    upload.single('resume')(req, res, (err) => {
+      if (err) {
+        return res.status(400).json({ message: err.message });
+      }
+      next();
+    });
+  },
+  async (req, res) => {
   try {
+    console.log('POST /api/resume/upload req.body:', req.body, 'req.file:', req.file ? req.file.originalname : null);
     let extractedText = '';
     let originalFilename = 'resume.pdf';
 
@@ -67,9 +83,9 @@ router.post('/upload', authMiddleware, upload.single('resume'), async (req, res)
           /* ignore unlink error */
         }
       }
-    } else if (req.body.text) {
+    } else if (req.body && (req.body.text || req.body.rawText)) {
       // Fallback text input if raw text sent directly
-      extractedText = req.body.text;
+      extractedText = req.body.text || req.body.rawText;
       originalFilename = req.body.filename || 'text_resume.txt';
     } else {
       return res.status(400).json({ message: 'Please upload a PDF file or provide resume text' });

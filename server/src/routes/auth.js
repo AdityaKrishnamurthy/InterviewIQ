@@ -12,7 +12,10 @@ router.post('/register', async (req, res) => {
   try {
     const { name, email, password } = req.body;
 
-    if (!name || !email || !password) {
+    const cleanName = (name || '').trim();
+    const cleanEmail = (email || '').trim().toLowerCase();
+
+    if (!cleanName || !cleanEmail || !password) {
       return res.status(400).json({ message: 'Please provide name, email, and password' });
     }
 
@@ -20,7 +23,7 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ message: 'Password must be at least 6 characters' });
     }
 
-    let user = await userStore.findByEmail(email);
+    let user = await userStore.findByEmail(cleanEmail);
     if (user) {
       return res.status(400).json({ message: 'User already exists with this email' });
     }
@@ -29,8 +32,8 @@ router.post('/register', async (req, res) => {
     const passwordHash = await bcrypt.hash(password, salt);
 
     user = await userStore.create({
-      name,
-      email,
+      name: cleanName,
+      email: cleanEmail,
       passwordHash,
     });
 
@@ -67,11 +70,13 @@ router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    if (!email || !password) {
+    const cleanEmail = (email || '').trim().toLowerCase();
+
+    if (!cleanEmail || !password) {
       return res.status(400).json({ message: 'Please enter email and password' });
     }
 
-    const user = await userStore.findByEmail(email);
+    const user = await userStore.findByEmail(cleanEmail);
     if (!user) {
       return res.status(400).json({ message: 'Invalid credentials' });
     }

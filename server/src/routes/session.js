@@ -82,6 +82,10 @@ router.post('/answer', authMiddleware, async (req, res) => {
       return res.status(400).json({ message: 'Please provide sessionId and answer text' });
     }
 
+    if (!mongoose.Types.ObjectId.isValid(sessionId)) {
+      return res.status(400).json({ message: 'Invalid session ID' });
+    }
+
     const session = await sessionStore.findByIdAndUserId(sessionId, req.user.id);
 
     if (!session) {

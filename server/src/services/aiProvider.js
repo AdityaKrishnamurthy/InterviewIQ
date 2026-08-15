@@ -14,7 +14,7 @@ const getGroqClient = () => {
 
 const getGeminiClient = () => {
   const apiKey = process.env.GEMINI_API_KEY;
-  if (apiKey && apiKey !== 'your_key_here') {
+  if (apiKey && apiKey !== 'your_key_here' && !apiKey.startsWith('gsk_')) {
     return new GoogleGenAI({ apiKey });
   }
   return null;

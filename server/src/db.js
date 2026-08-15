@@ -2,19 +2,79 @@ const mongoose = require('mongoose');
 const User = require('./models/User');
 const Resume = require('./models/Resume');
 const Session = require('./models/Session');
-const crypto = require('crypto');
+const fs = require('fs');
+const path = require('path');
 
-// In-memory data structures for fallback when MongoDB is not connected
+// In-memory data structures with automatic JSON file persistence fallback
 const memoryUsers = new Map();
 const memoryResumes = new Map();
 const memorySessions = new Map();
+
+const DB_FILE = path.join(__dirname, '../../.local_db.json');
+
+const loadMemoryStore = () => {
+  try {
+    if (fs.existsSync(DB_FILE)) {
+      const data = JSON.parse(fs.readFileSync(DB_FILE, 'utf8'));
+      if (Array.isArray(data.users)) {
+        data.users.forEach((u) => {
+          u.save = async function () {
+            memoryUsers.set(this._id, this);
+            saveMemoryStore();
+            return this;
+          };
+          memoryUsers.set(u._id, u);
+        });
+      }
+      if (Array.isArray(data.resumes)) {
+        data.resumes.forEach((r) => {
+          r.save = async function () {
+            memoryResumes.set(this._id, this);
+            saveMemoryStore();
+            return this;
+          };
+          memoryResumes.set(r._id, r);
+        });
+      }
+      if (Array.isArray(data.sessions)) {
+        data.sessions.forEach((s) => {
+          s.save = async function () {
+            this.updatedAt = new Date();
+            memorySessions.set(this._id, this);
+            saveMemoryStore();
+            return this;
+          };
+          memorySessions.set(s._id, s);
+        });
+      }
+    }
+  } catch (err) {
+    console.warn('Could not load local_db.json:', err.message);
+  }
+};
+
+const saveMemoryStore = () => {
+  try {
+    const data = {
+      users: Array.from(memoryUsers.values()),
+      resumes: Array.from(memoryResumes.values()),
+      sessions: Array.from(memorySessions.values()),
+    };
+    fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2), 'utf8');
+  } catch (err) {
+    console.warn('Could not save local_db.json:', err.message);
+  }
+};
+
+loadMemoryStore();
 
 const isDbConnected = () => mongoose.connection.readyState === 1;
 
 // User Store Adapter
 const userStore = {
   findByEmail: async (email) => {
-    const cleanEmail = email.toLowerCase();
+    if (!email) return null;
+    const cleanEmail = email.trim().toLowerCase();
     if (isDbConnected()) {
       return await User.findOne({ email: cleanEmail });
     }
@@ -25,35 +85,39 @@ const userStore = {
   },
 
   findById: async (id) => {
+    if (!id) return null;
     if (isDbConnected()) {
       return await User.findById(id).select('-passwordHash');
     }
-    const user = memoryUsers.get(id);
+    const user = memoryUsers.get(id.toString());
     if (!user) return null;
     const { passwordHash, ...userWithoutPass } = user;
     return userWithoutPass;
   },
 
   create: async ({ name, email, passwordHash }) => {
-    const cleanEmail = email.toLowerCase();
+    const cleanEmail = (email || '').trim().toLowerCase();
+    const cleanName = (name || '').trim();
     if (isDbConnected()) {
-      const u = new User({ name, email: cleanEmail, passwordHash });
+      const u = new User({ name: cleanName, email: cleanEmail, passwordHash });
       await u.save();
       return u;
     }
     const id = new mongoose.Types.ObjectId().toString();
     const user = {
       _id: id,
-      name,
+      name: cleanName,
       email: cleanEmail,
       passwordHash,
       createdAt: new Date(),
       save: async function () {
         memoryUsers.set(this._id, this);
+        saveMemoryStore();
         return this;
       },
     };
     memoryUsers.set(id, user);
+    saveMemoryStore();
     return user;
   },
 };
@@ -69,6 +133,7 @@ const resumeStore = {
   },
 
   findLatestByUserId: async (userId) => {
+    if (!userId) return null;
     if (isDbConnected()) {
       return await Resume.findOne({ userId }).sort({ createdAt: -1 });
     }
@@ -87,17 +152,19 @@ const resumeStore = {
     const id = new mongoose.Types.ObjectId().toString();
     const resume = {
       _id: id,
-      userId,
+      userId: userId.toString(),
       filename,
       rawText,
       parsedData,
       createdAt: new Date(),
       save: async function () {
         memoryResumes.set(this._id, this);
+        saveMemoryStore();
         return this;
       },
     };
     memoryResumes.set(id, resume);
+    saveMemoryStore();
     return resume;
   },
 };
@@ -105,10 +172,11 @@ const resumeStore = {
 // Session Store Adapter
 const sessionStore = {
   findByIdAndUserId: async (id, userId) => {
+    if (!id || !userId) return null;
     if (isDbConnected()) {
       return await Session.findOne({ _id: id, userId });
     }
-    const s = memorySessions.get(id);
+    const s = memorySessions.get(id.toString());
     if (s && s.userId.toString() === userId.toString()) {
       return s;
     }
@@ -116,6 +184,7 @@ const sessionStore = {
   },
 
   findByUserId: async (userId) => {
+    if (!userId) return [];
     if (isDbConnected()) {
       return await Session.find({ userId }).sort({ updatedAt: -1 });
     }
@@ -141,8 +210,8 @@ const sessionStore = {
     const id = new mongoose.Types.ObjectId().toString();
     const session = {
       _id: id,
-      userId,
-      resumeId,
+      userId: userId.toString(),
+      resumeId: resumeId ? resumeId.toString() : null,
       companyPersona,
       targetRole,
       status: 'active',
@@ -158,10 +227,12 @@ const sessionStore = {
       save: async function () {
         this.updatedAt = new Date();
         memorySessions.set(this._id, this);
+        saveMemoryStore();
         return this;
       },
     };
     memorySessions.set(id, session);
+    saveMemoryStore();
     return session;
   },
 };

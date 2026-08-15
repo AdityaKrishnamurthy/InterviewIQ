@@ -152,11 +152,14 @@ const SessionHistoryList = ({ sessions = [] }) => {
 
               {!isCompleted && (
                 <div style={{
-                  fontSize: '0.75rem',
-                  color: 'var(--text-muted)',
-                  fontStyle: 'italic',
+                  fontSize: '0.8rem',
+                  color: 'var(--warning)',
+                  fontWeight: 600,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.35rem',
                 }}>
-                  Resume not supported yet →
+                  ● In progress →
                 </div>
               )}
             </div>
