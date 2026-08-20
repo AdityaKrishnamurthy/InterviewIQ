@@ -5,7 +5,7 @@ import ScoreTrendChart from '../components/ScoreTrendChart';
 import SessionHistoryList from '../components/SessionHistoryList';
 import ThemeToggle from '../components/ThemeToggle';
 import Logo from '../components/Logo';
-import { FileText, Stamp, Check, Clock, TrendUp } from '../components/Icon';
+import { FileText, Briefcase, Stamp, Check, Clock, TrendUp } from '../components/Icon';
 import { API_BASE_URL } from '../config/api';
 
 const STAT_ICONS = [Clock, Check, TrendUp, Stamp];
@@ -100,6 +100,12 @@ const Dashboard = () => {
             className="btn btn-secondary dashboard-action-btn"
           >
             <FileText size={16} /> Upload Resume
+          </button>
+          <button
+            onClick={() => navigate('/jd')}
+            className="btn btn-secondary dashboard-action-btn"
+          >
+            <Briefcase size={16} /> Upload Job Description
           </button>
           <button
             onClick={() => navigate('/interview')}

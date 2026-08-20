@@ -142,3 +142,10 @@ export const Trash = ({ size = 15, className }) => base(size, className, (
     <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6h14zM10 11v6M14 11v6" />
   </>
 ));
+
+export const Briefcase = ({ size = 18, className }) => base(size, className, (
+  <>
+    <rect x="3.5" y="6.5" width="17" height="14" rx="1.5" />
+    <path d="M8.5 6.5V4a1.5 1.5 0 0 1 1.5-1.5h4a1.5 1.5 0 0 1 1.5 1.5v2.5M3.5 11.5h17" />
+  </>
+));

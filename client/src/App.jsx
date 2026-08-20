@@ -6,6 +6,7 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import ResumeUpload from './pages/ResumeUpload';
+import JobDescriptionUpload from './pages/JobDescriptionUpload';
 import InterviewSession from './pages/InterviewSession';
 import FinalReport from './pages/FinalReport';
 import PrivateRoute from './components/PrivateRoute';
@@ -33,6 +34,18 @@ function App() {
                 <ResumeUpload />
               </PrivateRoute>
             }
+          />
+          <Route
+            path="/jd"
+            element={
+              <PrivateRoute>
+                <JobDescriptionUpload />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/job-description"
+            element={<Navigate to="/jd" replace />}
           />
           <Route
             path="/interview"
