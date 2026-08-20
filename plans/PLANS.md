@@ -20,6 +20,8 @@ Tracks the status of every plan in `plans/`. Update this table as work progresse
 | 014  | Dark / Light Theme Toggle | Done | |
 | 015  | (informal hotfixes — Groq model config, dev port mismatch, README) | Done | No plan file; ad-hoc commits, see git log |
 | 016  | Voice Mode Reliability & Cross-Browser Fallback | Done | Server-side Groq Whisper fallback for browsers that block native Web Speech (e.g. Brave) |
+| 017  | Test suite & CI | Done | Client (7) + server (33) tests, GitHub Actions workflow |
+| 018  | Full UI/UX Redesign: "The Record" | Done | Rebuilt UI/UX, true dark/light mode, JetBrains Mono, session deletion, Enter to submit |
 
 **Status values:** `Not started` · `In progress` · `Blocked` · `Done`
 

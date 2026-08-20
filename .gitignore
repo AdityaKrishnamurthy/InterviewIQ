@@ -11,3 +11,4 @@ dist
 build
 uploads
 .local_db.json
+.impeccable/hook.cache.json

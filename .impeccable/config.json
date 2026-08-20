@@ -1,0 +1,17 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "design-system-font-size",
+        "value": "1rem",
+        "files": [
+          "client/src/index.css"
+        ],
+        "createdAt": "2026-08-20T08:45:02.821Z",
+        "reason": "intentional: form-input base size, 1rem = 16px browser default, matches body expectations for input fields"
+      }
+    ]
+  }
+}

@@ -1,8 +1,9 @@
 import React from 'react';
 import { useTheme } from '../context/ThemeContext';
+import { Sun, Moon } from './Icon';
 
 const ThemeToggle = ({ className = '', style = {} }) => {
-  const { theme, toggleTheme, isDark } = useTheme();
+  const { toggleTheme, isDark } = useTheme();
 
   return (
     <button
@@ -13,9 +14,7 @@ const ThemeToggle = ({ className = '', style = {} }) => {
       aria-label={isDark ? 'Switch to light theme' : 'Switch to dark theme'}
       title={isDark ? 'Switch to light theme' : 'Switch to dark theme'}
     >
-      <span className="theme-toggle-icon">
-        {isDark ? '☀️' : '🌙'}
-      </span>
+      {isDark ? <Sun size={17} /> : <Moon size={17} />}
     </button>
   );
 };
