@@ -3,14 +3,16 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import ThemeToggle from '../components/ThemeToggle';
 import Logo from '../components/Logo';
-import { Upload, FileText } from '../components/Icon';
+import { Upload, FileText, Trash, Spinner, Check } from '../components/Icon';
 import { API_BASE_URL } from '../config/api';
 
 const ResumeUpload = () => {
   const [file, setFile] = useState(null);
   const [dragActive, setDragActive] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [deletingResume, setDeletingResume] = useState(false);
   const [error, setError] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
   const [parsedResume, setParsedResume] = useState(null);
   const [loadingExisting, setLoadingExisting] = useState(true);
 
@@ -66,6 +68,7 @@ const ResumeUpload = () => {
 
   const validateAndSetFile = (selectedFile) => {
     setError('');
+    setSuccessMessage('');
     if (!selectedFile.name.endsWith('.pdf') && selectedFile.type !== 'application/pdf') {
       setError('Please select a valid PDF file (.pdf)');
       return;
@@ -85,6 +88,7 @@ const ResumeUpload = () => {
     }
 
     setError('');
+    setSuccessMessage('');
     setUploading(true);
 
     const formData = new FormData();
@@ -105,10 +109,45 @@ const ResumeUpload = () => {
 
       setParsedResume(data.resume);
       setFile(null);
+      setSuccessMessage('Resume parsed and saved successfully!');
     } catch (err) {
       setError(err.message || 'Error uploading resume. Please try again.');
     } finally {
       setUploading(false);
+    }
+  };
+
+  const handleDeleteResume = async () => {
+    if (!window.confirm('Are you sure you want to remove this resume? You will be able to upload a new one.')) {
+      return;
+    }
+    setError('');
+    setSuccessMessage('');
+    setDeletingResume(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/resume/latest`, {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: 'application/json',
+        },
+      });
+      let data = {};
+      try {
+        data = await response.json();
+      } catch (e) {
+        /* ignore JSON parse error on non-200 html */
+      }
+      if (!response.ok) {
+        throw new Error(data.message || `Failed to remove resume (status ${response.status})`);
+      }
+      setParsedResume(null);
+      setFile(null);
+      setSuccessMessage('Resume removed successfully.');
+    } catch (err) {
+      setError(err.message || 'Error removing resume. Please try again.');
+    } finally {
+      setDeletingResume(false);
     }
   };
 
@@ -128,15 +167,37 @@ const ResumeUpload = () => {
       </header>
 
       <main className="dashboard-container">
-        <div className="docket-heading">
-          <h1 style={{ fontSize: '1.6rem' }}>Upload Resume</h1>
+        <div className="docket-heading" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
+          <div>
+            <h1 style={{ fontSize: '1.6rem' }}>Upload Resume</h1>
+            <p style={{ color: 'var(--text-secondary)', marginTop: '0.35rem', maxWidth: '65ch', fontSize: '0.92rem' }}>
+              Upload your resume so InterviewIQ can extract your projects and skills to build a personalised interview — one project gets a full deep dive.
+            </p>
+          </div>
+          <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+            <button
+              onClick={() => navigate('/jd')}
+              className="btn btn-secondary"
+              style={{ width: 'auto', padding: '0.75rem 1.25rem', fontSize: '0.85rem' }}
+            >
+              Upload JD Instead →
+            </button>
+            <button
+              onClick={() => navigate('/interview')}
+              className="btn btn-seal"
+              style={{ width: 'auto', padding: '0.75rem 1.5rem', fontSize: '0.85rem' }}
+            >
+              Start Interview →
+            </button>
+          </div>
         </div>
-        <p style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem', maxWidth: '65ch' }}>
-          Upload your resume so InterviewIQ can extract your projects and skills to
-          build a personalised interview — one project gets a full deep dive.
-        </p>
 
-        {error && <div className="alert-error">{error}</div>}
+        {error && <div className="alert-error" style={{ marginBottom: '1.25rem' }}>{error}</div>}
+        {successMessage && (
+          <div className="paper" style={{ padding: '0.75rem 1rem', marginBottom: '1.25rem', borderColor: 'var(--success)', color: 'var(--success)', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <Check size={16} /> {successMessage}
+          </div>
+        )}
 
         {/* Dropzone */}
         <div
@@ -173,7 +234,8 @@ const ResumeUpload = () => {
               disabled={uploading}
               style={{ maxWidth: '240px', margin: '0 auto' }}
             >
-              {uploading ? 'Analyzing…' : 'Upload Resume'}
+              {uploading ? <Spinner size={15} /> : <Upload size={15} />}
+              {uploading ? 'Analyzing Resume…' : 'Upload Resume'}
             </button>
           )}
         </div>
@@ -185,7 +247,7 @@ const ResumeUpload = () => {
           <div className="paper" style={{ padding: '1.75rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                <FileText size={20} style={{ color: 'var(--ink-muted)' }} />
+                <FileText size={20} style={{ color: 'var(--primary)' }} />
                 <div>
                   <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--ink)' }}>
                     Resume Ready
@@ -195,13 +257,26 @@ const ResumeUpload = () => {
                   </p>
                 </div>
               </div>
-              <button
-                onClick={() => navigate('/interview')}
-                className="btn btn-seal"
-                style={{ width: 'auto', padding: '0.7rem 1.5rem' }}
-              >
-                Start Interview →
-              </button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  onClick={handleDeleteResume}
+                  className="btn btn-secondary"
+                  disabled={deletingResume}
+                  style={{ width: 'auto', padding: '0.7rem 1.1rem', color: 'var(--seal)', borderColor: 'var(--border-color)' }}
+                  title="Remove this resume and upload a new one"
+                >
+                  {deletingResume ? <Spinner size={15} /> : <Trash size={15} />}
+                  {deletingResume ? 'Removing…' : 'Remove Resume'}
+                </button>
+                <button
+                  onClick={() => navigate('/interview')}
+                  className="btn btn-seal"
+                  style={{ width: 'auto', padding: '0.7rem 1.5rem' }}
+                >
+                  Start Interview →
+                </button>
+              </div>
             </div>
 
             {/* Skills */}

@@ -149,4 +149,36 @@ router.get('/latest', authMiddleware, async (req, res) => {
   }
 });
 
+// @route   DELETE /api/resume/latest
+// @desc    Delete the current user's latest resume
+// @access  Private
+router.delete('/latest', authMiddleware, async (req, res) => {
+  try {
+    const deleted = await resumeStore.deleteLatestByUserId(req.user.id);
+    if (!deleted) {
+      return res.status(404).json({ message: 'No resume found to remove' });
+    }
+    res.json({ success: true, message: 'Resume removed successfully' });
+  } catch (err) {
+    console.error('Delete resume error:', err.message);
+    res.status(500).json({ message: 'Server error removing resume' });
+  }
+});
+
+// @route   DELETE /api/resume/:id
+// @desc    Delete a specific resume by ID
+// @access  Private
+router.delete('/:id', authMiddleware, async (req, res) => {
+  try {
+    const deleted = await resumeStore.deleteByIdAndUserId(req.params.id, req.user.id);
+    if (!deleted) {
+      return res.status(404).json({ message: 'Resume not found' });
+    }
+    res.json({ success: true, message: 'Resume removed successfully' });
+  } catch (err) {
+    console.error('Delete resume error:', err.message);
+    res.status(500).json({ message: 'Server error removing resume' });
+  }
+});
+
 module.exports = router;
