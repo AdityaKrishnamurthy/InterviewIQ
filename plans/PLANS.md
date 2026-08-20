@@ -18,6 +18,8 @@ Tracks the status of every plan in `plans/`. Update this table as work progresse
 | 012  | Session Replay / Transcript View | Not started | |
 | 013  | Custom Company Personas | Not started | |
 | 014  | Dark / Light Theme Toggle | Done | |
+| 015  | (informal hotfixes — Groq model config, dev port mismatch, README) | Done | No plan file; ad-hoc commits, see git log |
+| 016  | Voice Mode Reliability & Cross-Browser Fallback | Done | Server-side Groq Whisper fallback for browsers that block native Web Speech (e.g. Brave) |
 
 **Status values:** `Not started` · `In progress` · `Blocked` · `Done`
 
