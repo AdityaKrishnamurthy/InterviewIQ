@@ -35,10 +35,11 @@ const InterviewSession = () => {
     startListening, stopListening,
     transcript, setTranscript,
     interimTranscript, speechDetected,
-    resetTranscript, isListening,
+    resetTranscript, isListening, isTranscribing,
     error: speechError, setError: setSpeechError,
     isSttSupported, isTtsSupported,
-  } = useSpeech();
+    sttEngine,
+  } = useSpeech(token);
 
   /* ── scroll ── */
   useEffect(() => {
@@ -69,6 +70,7 @@ const InterviewSession = () => {
     const onKey = async (e) => {
       if (e.code !== 'Space') return;
       if (['TEXTAREA', 'INPUT'].includes(e.target.tagName)) return;
+      if (isTranscribing) return;
       e.preventDefault();
       if (isListening) {
         stopListening();
@@ -81,7 +83,7 @@ const InterviewSession = () => {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [voiceMode, isListening, isSpeaking, startListening, stopListening, stopSpeaking, resetTranscript]);
+  }, [voiceMode, isListening, isSpeaking, isTranscribing, startListening, stopListening, stopSpeaking, resetTranscript]);
 
   /* ── handlers ── */
   const handleStartSession = async () => {
@@ -180,10 +182,16 @@ const InterviewSession = () => {
         {/* Global errors */}
         {error && <div className="alert-error" style={{ marginBottom: '1rem' }}>{error}</div>}
 
-        {/* Speech permission error */}
-        {speechError === 'not-allowed' && (
+        {/* Speech errors — only surfaced when the mic is genuinely unusable.
+            A native→server-fallback engine switch (e.g. on Brave) recovers
+            silently and never sets one of these. */}
+        {speechError && ['not-allowed', 'transcription-failed', 'unsupported'].includes(speechError) && (
           <div className="alert-error" style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
-            <span>🎤 Microphone access denied. Allow mic access in browser settings, then retry.</span>
+            <span>
+              {speechError === 'not-allowed' && '🎤 Microphone access denied. Allow mic access in browser settings, then retry.'}
+              {speechError === 'transcription-failed' && '🎤 Voice transcription failed — check your connection, or switch to Text Mode.'}
+              {speechError === 'unsupported' && '🎤 Voice input isn’t available in this browser. Switch to Text Mode.'}
+            </span>
             <button onClick={() => { setSpeechError(''); }} className="btn btn-secondary"
               style={{ width: 'auto', padding: '0.35rem 0.75rem', fontSize: '0.8rem' }}>
               Dismiss
@@ -270,13 +278,19 @@ const InterviewSession = () => {
                 <button onClick={toggleVoiceMode}
                   className={`voice-toggle-btn ${voiceMode ? 'active' : ''}`}
                   disabled={!isSttSupported}
-                  title={!isSttSupported ? 'Voice mode requires Chrome, Edge, or Safari' : undefined}>
+                  title={!isSttSupported ? 'Voice mode requires microphone access in a supported browser' : undefined}>
                   {voiceMode ? '🎤 Voice Mode' : '⌨️ Text Mode'}
                 </button>
 
                 {voiceMode && (
                   <span className="voice-indicator">
-                    {isSpeaking ? '🔊 AI Speaking...' : isListening ? '🎙️ Recording...' : '🎤 Ready'}
+                    {isSpeaking ? '🔊 AI Speaking...' : isTranscribing ? '☁️ Transcribing...' : isListening ? '🎙️ Recording...' : '🎤 Ready'}
+                  </span>
+                )}
+
+                {voiceMode && sttEngine === 'fallback' && (
+                  <span className="stt-engine-badge" title="Your browser blocks the built-in speech engine (common on Brave), so answers are transcribed on the server instead.">
+                    ☁️ Server transcription
                   </span>
                 )}
 
@@ -392,8 +406,10 @@ const InterviewSession = () => {
                 <div style={{ textAlign: 'center', fontSize: '0.9rem', fontWeight: 600 }}>
                   {submitting ? (
                     <span style={{ color: 'var(--text-secondary)' }}>Submitting…</span>
+                  ) : isTranscribing ? (
+                    <span style={{ color: 'var(--primary)' }}>☁️ Transcribing your answer…</span>
                   ) : isListening ? (
-                    speechDetected
+                    speechDetected || sttEngine === 'fallback'
                       ? <span style={{ color: 'var(--success)' }}>🎙️ Capturing speech — tap mic or press Space to stop</span>
                       : <span style={{ color: 'var(--error)' }}>🎙️ Listening… speak now</span>
                   ) : isSpeaking ? (
@@ -404,9 +420,9 @@ const InterviewSession = () => {
                 </div>
 
                 {/* Mic button */}
-                <button type="button" onClick={handleMicClick} disabled={submitting}
-                  className={`mic-button ${isListening ? 'listening' : isSpeaking ? 'speaking' : ''}`}>
-                  {submitting
+                <button type="button" onClick={handleMicClick} disabled={submitting || isTranscribing}
+                  className={`mic-button ${isListening ? 'listening' : isSpeaking ? 'speaking' : isTranscribing ? 'transcribing' : ''}`}>
+                  {submitting || isTranscribing
                     ? <span style={{ fontSize: '1.5rem' }}>⏳</span>
                     : isListening
                       ? <div className="waveform-bars"><span/><span/><span/><span/><span/></div>
