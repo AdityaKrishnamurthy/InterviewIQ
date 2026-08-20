@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
 
 const authRoutes = require('./routes/auth');
 const resumeRoutes = require('./routes/resume');
@@ -11,10 +12,24 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-app.get('/', (req, res) => res.send('InterviewIQ API is running'));
+// API routes
 app.use('/api/auth', authRoutes);
 app.use('/api/resume', resumeRoutes);
 app.use('/api/session', sessionRoutes);
 app.use('/api/speech', speechRoutes);
+
+// Static assets from client build directory
+const clientDistPath = path.join(__dirname, '../../client/dist');
+app.use(express.static(clientDistPath));
+
+// SPA catch-all fallback: Serve client index.html for direct navigation (e.g. /dashboard, /interview)
+app.get('*', (req, res) => {
+  const indexPath = path.join(clientDistPath, 'index.html');
+  res.sendFile(indexPath, (err) => {
+    if (err) {
+      res.send('InterviewIQ API is running');
+    }
+  });
+});
 
 module.exports = app;

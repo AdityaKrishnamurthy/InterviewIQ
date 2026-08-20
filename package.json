@@ -8,6 +8,8 @@
   ],
   "scripts": {
     "dev": "node scripts/dev.js",
+    "build": "npm run build --workspace=client",
+    "start": "node server/src/server.js",
     "client": "npm run dev --workspace=client",
     "server": "node server/src/server.js",
     "test": "npm run test --workspace=server && npm run test --workspace=client",
