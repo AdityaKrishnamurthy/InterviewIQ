@@ -145,17 +145,28 @@ const SessionHistoryList = ({ sessions = [], onDelete }) => {
               </div>
 
               {isCompleted && s.overallScore > 0 && (
-                <div style={{ textAlign: 'right' }}>
-                  <div style={{
-                    fontFamily: 'var(--font-mono)',
-                    fontSize: '1.4rem',
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'baseline',
+                  gap: '0.25rem',
+                  fontFamily: 'var(--font-mono)',
+                  flexShrink: 0,
+                }}>
+                  <span style={{
+                    fontSize: '1.3rem',
                     fontWeight: 700,
                     color: getScoreColor(s.overallScore),
                     lineHeight: 1,
                   }}>
                     {s.overallScore}
-                  </div>
-                  <div style={{ fontSize: '0.68rem', color: 'var(--ink-muted)' }}>/ 5.0</div>
+                  </span>
+                  <span style={{
+                    fontSize: '0.82rem',
+                    color: 'var(--ink-muted)',
+                    fontWeight: 500,
+                  }}>
+                    / 5.0
+                  </span>
                 </div>
               )}
 
