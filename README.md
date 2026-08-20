@@ -208,4 +208,4 @@ npm run test:client
 
 ## License
 
-MIT License. Designed and engineered for technical interview preparation.
+InterviewIQ is available under the MIT License.

@@ -1,8 +1,12 @@
 # Agent & planning docs (not for version control)
 .agents/
+.claude/
 AGENTS.md
 DESIGN.md
 PRD.md
+PRODUCT.md
+plans/
+.impeccable/
 
 # Build & Dependency Artifacts
 node_modules
@@ -11,4 +15,3 @@ dist
 build
 uploads
 .local_db.json
-.impeccable/hook.cache.json
