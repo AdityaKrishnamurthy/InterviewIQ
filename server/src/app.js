@@ -23,7 +23,7 @@ const clientDistPath = path.join(__dirname, '../../client/dist');
 app.use(express.static(clientDistPath));
 
 // SPA catch-all fallback: Serve client index.html for direct navigation (e.g. /dashboard, /interview)
-app.get('*', (req, res) => {
+app.use((req, res) => {
   const indexPath = path.join(clientDistPath, 'index.html');
   res.sendFile(indexPath, (err) => {
     if (err) {
