@@ -13,6 +13,7 @@ mongoose.set('bufferCommands', false);
 const authRoutes = require('./routes/auth');
 const resumeRoutes = require('./routes/resume');
 const sessionRoutes = require('./routes/session');
+const speechRoutes = require('./routes/speech');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -26,6 +27,7 @@ app.get('/', (req, res) => res.send('InterviewIQ API is running'));
 app.use('/api/auth', authRoutes);
 app.use('/api/resume', resumeRoutes);
 app.use('/api/session', sessionRoutes);
+app.use('/api/speech', speechRoutes);
 
 // Keep event loop open even if MongoDB connection is omitted/disconnected
 setInterval(() => {}, 1000 * 60 * 60);

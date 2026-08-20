@@ -1,4 +1,5 @@
 const Groq = require('groq-sdk');
+const { toFile } = require('groq-sdk');
 const { GoogleGenAI } = require('@google/genai');
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '../../../.env.local') });
@@ -22,6 +23,7 @@ const getGeminiClient = () => {
 
 const GROQ_MODEL = process.env.GROQ_MODEL || 'openai/gpt-oss-120b';
 const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
+const GROQ_WHISPER_MODEL = process.env.GROQ_WHISPER_MODEL || 'whisper-large-v3-turbo';
 
 /**
  * Generate AI completion with primary Groq API and fallback to Gemini / heuristic
@@ -90,7 +92,31 @@ const generateCompletion = async ({ systemPrompt = '', userPrompt = '', jsonMode
   throw new Error('No active AI provider available');
 };
 
+/**
+ * Transcribe a recorded audio buffer via Groq's hosted Whisper endpoint.
+ * Used as the cross-browser voice-input fallback when the browser's native
+ * Web Speech API is unsupported or blocked (e.g. Brave routes it through a
+ * Google backend it doesn't wire up, so recognition never starts there).
+ */
+const transcribeAudio = async (buffer, filename, mimetype) => {
+  const groq = getGroqClient();
+  if (!groq) {
+    throw new Error('Server-side transcription is unavailable: no GROQ_API_KEY configured');
+  }
+
+  const file = await toFile(buffer, filename, { type: mimetype });
+  const response = await groq.audio.transcriptions.create({
+    file,
+    model: GROQ_WHISPER_MODEL,
+    language: 'en',
+    response_format: 'json',
+  });
+
+  return response.text?.trim() || '';
+};
+
 module.exports = {
   generateCompletion,
   getGroqClient,
+  transcribeAudio,
 };
