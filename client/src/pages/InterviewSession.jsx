@@ -9,10 +9,10 @@ import { API_BASE_URL } from '../config/api';
 
 const PERSONAS_LIST = [
   { id: 'Custom',  mark: 'C',  title: 'Custom Persona',  color: 'var(--primary)',     tag: 'JD & Resume Matched',       desc: 'Hyper-tailored to your uploaded Job Description and Resume, testing exact role competencies.' },
+  { id: 'General', mark: 'GN', title: 'General Persona', color: 'var(--primary-ink)', tag: 'Full-Stack Technical',      desc: 'Balanced CS fundamentals, web development, and code reviews.' },
+  { id: 'Startup', mark: 'S',  title: 'Startup Persona', color: 'var(--secondary)',   tag: 'Systems & Velocity',        desc: 'Architecture, project deep-dives, production trade-offs, and rapid delivery.' },
   { id: 'Google',  mark: 'G',  title: 'Google Persona',  color: 'var(--primary)',     tag: 'Algorithms & Big-O',       desc: 'LeetCode, DSA, algorithmic complexity, and edge case rigor.' },
   { id: 'Amazon',  mark: 'A',  title: 'Amazon Persona',  color: 'var(--warning)',     tag: 'Leadership & STAR',         desc: 'Behavioral questions, STAR method, customer obsession & system scalability.' },
-  { id: 'Startup', mark: 'S',  title: 'Startup Persona', color: 'var(--secondary)',   tag: 'Systems & Velocity',        desc: 'Architecture, project deep-dives, production trade-offs, and rapid delivery.' },
-  { id: 'General', mark: 'GN', title: 'General Persona', color: 'var(--primary-ink)', tag: 'Full-Stack Technical',      desc: 'Balanced CS fundamentals, web development, and code reviews.' },
 ];
 
 const getDiff = (d) => ({
@@ -22,7 +22,7 @@ const getDiff = (d) => ({
 }[d] ?? { color: 'var(--warning)', label: 'Medium' });
 
 const InterviewSession = () => {
-  const [selectedPersona, setSelectedPersona] = useState('Custom');
+  const [selectedPersona, setSelectedPersona] = useState('General');
   const [targetRole, setTargetRole]           = useState('Software Engineer');
   const [profileResume, setProfileResume]     = useState(null);
   const [profileJd, setProfileJd]             = useState(null);
@@ -43,31 +43,40 @@ const InterviewSession = () => {
   // Fetch active Resume and Job Description on mount
   useEffect(() => {
     if (!token) return;
-    fetch(`${API_BASE_URL}/api/resume/latest`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => {
-        if (data?.resume) setProfileResume(data.resume);
+    Promise.all([
+      fetch(`${API_BASE_URL}/api/resume/latest`, {
+        headers: { Authorization: `Bearer ${token}` },
       })
-      .catch(() => {});
+        .then((r) => (r.ok ? r.json() : null))
+        .catch(() => null),
+      fetch(`${API_BASE_URL}/api/jd/latest`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+        .then((r) => (r.ok ? r.json() : null))
+        .catch(() => null),
+    ]).then(([resumeData, jdData]) => {
+      const activeResume = resumeData?.resume || null;
+      const activeJd = jdData?.jd || null;
 
-    fetch(`${API_BASE_URL}/api/jd/latest`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => {
-        if (data?.jd) {
-          setProfileJd(data.jd);
-          setSelectedPersona('Custom');
-          if (data.jd.parsedData?.roleTitle) {
-            setTargetRole(data.jd.parsedData.roleTitle);
-          } else if (data.jd.title) {
-            setTargetRole(data.jd.title);
-          }
+      setProfileResume(activeResume);
+      setProfileJd(activeJd);
+
+      if (activeJd) {
+        if (activeJd.parsedData?.roleTitle) {
+          setTargetRole(activeJd.parsedData.roleTitle);
+        } else if (activeJd.title) {
+          setTargetRole(activeJd.title);
         }
-      })
-      .catch(() => {});
+      }
+
+      // If BOTH Resume and JD are uploaded, default to Custom Persona.
+      // Otherwise, default to General Persona.
+      if (activeResume && activeJd) {
+        setSelectedPersona('Custom');
+      } else {
+        setSelectedPersona('General');
+      }
+    });
   }, [token]);
 
   const {

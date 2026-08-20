@@ -184,20 +184,18 @@ const resumeStore = {
   deleteLatestByUserId: async (userId) => {
     if (!userId) return false;
     if (isDbConnected()) {
-      const latest = await Resume.findOne({ userId }).sort({ createdAt: -1 });
-      if (!latest) return false;
-      const res = await Resume.deleteOne({ _id: latest._id });
+      const res = await Resume.deleteMany({ userId });
       return res.deletedCount > 0;
     }
-    const userResumes = Array.from(memoryResumes.values())
-      .filter((r) => r.userId.toString() === userId.toString())
-      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-    if (userResumes.length > 0) {
-      memoryResumes.delete(userResumes[0]._id.toString());
-      saveMemoryStore();
-      return true;
+    let deleted = false;
+    for (const [id, r] of memoryResumes.entries()) {
+      if (r.userId.toString() === userId.toString()) {
+        memoryResumes.delete(id);
+        deleted = true;
+      }
     }
-    return false;
+    if (deleted) saveMemoryStore();
+    return deleted;
   },
 
   deleteByIdAndUserId: async (id, userId) => {
@@ -266,20 +264,18 @@ const jdStore = {
   deleteLatestByUserId: async (userId) => {
     if (!userId) return false;
     if (isDbConnected()) {
-      const latest = await JobDescription.findOne({ userId }).sort({ createdAt: -1 });
-      if (!latest) return false;
-      const res = await JobDescription.deleteOne({ _id: latest._id });
+      const res = await JobDescription.deleteMany({ userId });
       return res.deletedCount > 0;
     }
-    const userJDs = Array.from(memoryJobDescriptions.values())
-      .filter((j) => j.userId.toString() === userId.toString())
-      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-    if (userJDs.length > 0) {
-      memoryJobDescriptions.delete(userJDs[0]._id.toString());
-      saveMemoryStore();
-      return true;
+    let deleted = false;
+    for (const [id, j] of memoryJobDescriptions.entries()) {
+      if (j.userId.toString() === userId.toString()) {
+        memoryJobDescriptions.delete(id);
+        deleted = true;
+      }
     }
-    return false;
+    if (deleted) saveMemoryStore();
+    return deleted;
   },
 
   deleteByIdAndUserId: async (id, userId) => {
