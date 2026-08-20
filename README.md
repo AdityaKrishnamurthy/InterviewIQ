@@ -95,6 +95,19 @@ This starts both the backend and frontend together:
 
 Run them individually with `npm run server` or `npm run client` if needed.
 
+## Tests
+
+```bash
+npm test              # both suites
+npm run test:server   # server only
+npm run test:client   # client only
+```
+
+- **Server** (Vitest + Supertest): unit tests for the adaptive difficulty ladder, the fallback resume parser, and the fallback report scoring; integration tests hitting the real Express app against an in-memory MongoDB.
+- **Client** (Vitest + Testing Library): Login form behavior and the AuthContext token lifecycle.
+
+The first server run downloads a MongoDB binary for `mongodb-memory-server`, so it takes noticeably longer than subsequent runs. CI runs both suites and the client build on every push and PR to `main`.
+
 ## API Overview
 
 | Method | Route                     | Description                                   |
