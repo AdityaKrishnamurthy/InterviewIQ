@@ -1,17 +1,38 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { API_BASE_URL } from '../config/api';
 
 const SpeechRecognitionAPI =
   typeof window !== 'undefined'
     ? window.SpeechRecognition || window.webkitSpeechRecognition
     : null;
 
-const useSpeech = () => {
+// Chromium's webkitSpeechRecognition streams mic audio to Google's remote
+// recognition backend rather than running on-device. Brave (and other
+// de-Googled Chromium builds) blocks that backend by default, so recognition
+// fails immediately even with mic permission granted. MediaRecorder + a
+// server-side Whisper endpoint is the fallback for browsers where native
+// recognition is unsupported or gets blocked at runtime.
+const hasMediaRecorderFallback =
+  typeof window !== 'undefined' &&
+  typeof window.MediaRecorder !== 'undefined' &&
+  !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+
+const getSupportedMimeType = () => {
+  if (typeof MediaRecorder === 'undefined' || !MediaRecorder.isTypeSupported) return '';
+  return ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4'].find((t) => MediaRecorder.isTypeSupported(t)) || '';
+};
+
+const useSpeech = (token) => {
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isListening, setIsListening] = useState(false);
+  const [isTranscribing, setIsTranscribing] = useState(false);
   const [transcript, setTranscript] = useState('');
   const [interimTranscript, setInterimTranscript] = useState('');
   const [speechDetected, setSpeechDetected] = useState(false);
   const [error, setError] = useState('');
+  const [sttEngine, setSttEngine] = useState(() =>
+    SpeechRecognitionAPI ? 'native' : hasMediaRecorderFallback ? 'fallback' : 'none'
+  );
 
   const recognitionRef = useRef(null);
   const finalTranscriptRef = useRef('');
@@ -19,10 +40,21 @@ const useSpeech = () => {
   const isListeningRef = useRef(false);
   const speakSafetyTimerRef = useRef(null);
   const utteranceRef = useRef(null);
+  const tokenRef = useRef(token);
+  const nativeBrokenRef = useRef(false);
+  const startFallbackRecordingRef = useRef(null);
+  const mediaRecorderRef = useRef(null);
+  const audioChunksRef = useRef([]);
+  const mediaStreamRef = useRef(null);
+  const transcribeSafetyTimerRef = useRef(null);
 
-  const isSttSupported = typeof window !== 'undefined' && !!SpeechRecognitionAPI;
+  const isSttSupported = typeof window !== 'undefined' && (!!SpeechRecognitionAPI || hasMediaRecorderFallback);
   const isTtsSupported = typeof window !== 'undefined' && !!window.speechSynthesis;
   const isSupported = isSttSupported && isTtsSupported;
+
+  useEffect(() => {
+    tokenRef.current = token;
+  }, [token]);
 
   /* ── helpers ── */
   const setListening = (val) => {
@@ -86,7 +118,92 @@ const useSpeech = () => {
     if (isMountedRef.current) setIsSpeaking(false);
   }, [isTtsSupported]);
 
-  /* ── STT: initialise ── */
+  /* ── STT fallback: MediaRecorder + server-side Whisper transcription ── */
+  const startFallbackRecording = useCallback(async () => {
+    if (!hasMediaRecorderFallback) {
+      if (isMountedRef.current) setError('unsupported');
+      setListening(false);
+      return;
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaStreamRef.current = stream;
+
+      const mimeType = getSupportedMimeType();
+      const recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
+      audioChunksRef.current = [];
+
+      recorder.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0) audioChunksRef.current.push(e.data);
+      };
+
+      recorder.onstop = async () => {
+        mediaStreamRef.current?.getTracks().forEach((t) => t.stop());
+        mediaStreamRef.current = null;
+
+        const chunks = audioChunksRef.current;
+        audioChunksRef.current = [];
+        if (!chunks.length) {
+          setListening(false);
+          return;
+        }
+
+        const blob = new Blob(chunks, { type: recorder.mimeType || 'audio/webm' });
+        if (isMountedRef.current) setIsTranscribing(true);
+
+        if (transcribeSafetyTimerRef.current) clearTimeout(transcribeSafetyTimerRef.current);
+        transcribeSafetyTimerRef.current = setTimeout(() => {
+          if (isMountedRef.current) {
+            setIsTranscribing(false);
+            setError('transcription-failed');
+          }
+        }, 30000);
+
+        try {
+          const ext = (recorder.mimeType || '').includes('mp4') ? 'mp4' : 'webm';
+          const form = new FormData();
+          form.append('audio', blob, `answer.${ext}`);
+
+          const res = await fetch(`${API_BASE_URL}/api/speech/transcribe`, {
+            method: 'POST',
+            headers: tokenRef.current ? { Authorization: `Bearer ${tokenRef.current}` } : {},
+            body: form,
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.message || 'Transcription failed');
+
+          if (isMountedRef.current) {
+            finalTranscriptRef.current = data.transcript || '';
+            setTranscript(data.transcript || '');
+            setInterimTranscript('');
+            if (data.transcript) setSpeechDetected(true);
+            setError('');
+          }
+        } catch {
+          if (isMountedRef.current) setError('transcription-failed');
+        } finally {
+          if (transcribeSafetyTimerRef.current) clearTimeout(transcribeSafetyTimerRef.current);
+          if (isMountedRef.current) setIsTranscribing(false);
+          setListening(false);
+        }
+      };
+
+      mediaRecorderRef.current = recorder;
+      recorder.start();
+      if (isMountedRef.current) setSttEngine('fallback');
+      setListening(true);
+    } catch {
+      if (isMountedRef.current) setError('not-allowed');
+      setListening(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    startFallbackRecordingRef.current = startFallbackRecording;
+  }, [startFallbackRecording]);
+
+  /* ── STT: initialise native engine ── */
   useEffect(() => {
     if (!SpeechRecognitionAPI) return;
 
@@ -123,25 +240,40 @@ const useSpeech = () => {
       }
     };
 
+    // Chromium's speech-recognition backend is a remote Google service, not
+    // an on-device one. Browsers that don't wire it up (Brave, etc.) fail
+    // with 'service-not-allowed' or 'network' the instant recognition starts
+    // — even though mic permission was granted fine. Treat that as "this
+    // engine doesn't work here", not "the user denied the mic", and switch
+    // to the MediaRecorder fallback transparently rather than dead-ending.
     rec.onerror = (event) => {
       if (!isMountedRef.current) return;
       if (event.error === 'aborted') return;
-      if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+
+      if (event.error === 'not-allowed') {
         setError('not-allowed');
         setListening(false);
+      } else if (event.error === 'service-not-allowed' || event.error === 'network') {
+        nativeBrokenRef.current = true;
+        try { rec.abort(); } catch {}
+        if (isListeningRef.current) {
+          startFallbackRecordingRef.current?.();
+        } else {
+          setListening(false);
+        }
       } else if (event.error === 'no-speech') {
         // If listening mode is active, attempt to keep listening
         if (isListeningRef.current) {
           try { rec.start(); } catch {}
         }
-      } else if (event.error === 'network') {
-        setError('network');
-        setListening(false);
       }
     };
 
     rec.onend = () => {
       if (!isMountedRef.current) return;
+      // Already handed off to the fallback engine in onerror above — don't
+      // race its state with a native restart attempt that will just refail.
+      if (nativeBrokenRef.current) return;
       // Auto-restart continuous listening if user hasn't explicitly stopped
       if (isListeningRef.current) {
         try {
@@ -159,19 +291,41 @@ const useSpeech = () => {
     return () => {
       isMountedRef.current = false;
       if (speakSafetyTimerRef.current) clearTimeout(speakSafetyTimerRef.current);
+      if (transcribeSafetyTimerRef.current) clearTimeout(transcribeSafetyTimerRef.current);
       try { rec.abort(); } catch {}
       try { window.speechSynthesis?.cancel(); } catch {}
+      try {
+        if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+          mediaRecorderRef.current.stop();
+        }
+      } catch {}
+      try { mediaStreamRef.current?.getTracks().forEach((t) => t.stop()); } catch {}
     };
   }, []);
 
   /* ── STT: start ── */
   const startListening = useCallback(async () => {
-    if (!isSttSupported || !recognitionRef.current) {
+    if (!isSttSupported) {
       setError('unsupported');
       return;
     }
 
     if (isListeningRef.current) return;
+
+    const useNative = !!SpeechRecognitionAPI && recognitionRef.current && !nativeBrokenRef.current;
+
+    finalTranscriptRef.current = '';
+    if (isMountedRef.current) {
+      setTranscript('');
+      setInterimTranscript('');
+      setSpeechDetected(false);
+      setError('');
+    }
+
+    if (!useNative) {
+      await startFallbackRecording();
+      return;
+    }
 
     // Check mic permission explicitly if available
     if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
@@ -183,16 +337,9 @@ const useSpeech = () => {
       }
     }
 
-    finalTranscriptRef.current = '';
-    if (isMountedRef.current) {
-      setTranscript('');
-      setInterimTranscript('');
-      setSpeechDetected(false);
-      setError('');
-    }
-
     try {
       recognitionRef.current.start();
+      if (isMountedRef.current) setSttEngine('native');
       setListening(true);
     } catch (e) {
       // If already started or transitioning, ensure listening state is true
@@ -202,10 +349,14 @@ const useSpeech = () => {
         console.warn('startListening error:', e.message);
       }
     }
-  }, [isSttSupported]);
+  }, [isSttSupported, startFallbackRecording]);
 
   /* ── STT: stop ── */
   const stopListening = useCallback(() => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      mediaRecorderRef.current.stop(); // onstop drives transcription + setListening(false)
+      return;
+    }
     setListening(false);
     if (!recognitionRef.current) return;
     try { recognitionRef.current.stop(); } catch {}
@@ -237,8 +388,9 @@ const useSpeech = () => {
     startListening, stopListening,
     transcript, setTranscript: updateTranscript,
     interimTranscript, speechDetected,
-    resetTranscript, isListening,
+    resetTranscript, isListening, isTranscribing,
     error, setError, isSupported, isSttSupported, isTtsSupported,
+    sttEngine,
   };
 };
 
