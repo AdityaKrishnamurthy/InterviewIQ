@@ -20,8 +20,11 @@ const getGeminiClient = () => {
   return null;
 };
 
+const GROQ_MODEL = process.env.GROQ_MODEL || 'openai/gpt-oss-120b';
+const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
+
 /**
- * Generate AI completion with primary Groq API (llama-3.3-70b-versatile) and fallback to Gemini / heuristic
+ * Generate AI completion with primary Groq API and fallback to Gemini / heuristic
  */
 const generateCompletion = async ({ systemPrompt = '', userPrompt = '', jsonMode = false }) => {
   const groq = getGroqClient();
@@ -36,7 +39,7 @@ const generateCompletion = async ({ systemPrompt = '', userPrompt = '', jsonMode
 
       const options = {
         messages,
-        model: 'llama-3.3-70b-versatile',
+        model: GROQ_MODEL,
         temperature: 0.2,
       };
 
@@ -67,7 +70,7 @@ const generateCompletion = async ({ systemPrompt = '', userPrompt = '', jsonMode
     try {
       const fullPrompt = `${systemPrompt ? systemPrompt + '\n\n' : ''}${userPrompt}`;
       const response = await gemini.models.generateContent({
-        model: 'gemini-2.0-flash',
+        model: GEMINI_MODEL,
         contents: fullPrompt,
       });
 
