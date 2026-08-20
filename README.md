@@ -1,62 +1,119 @@
-# InterviewIQ — AI Technical Interview Agent
+# InterviewIQ
 
-> Upload your resume, pick a company persona, and get interviewed by an AI that adapts its next question to how you're actually doing.
+Adaptive AI Technical Interview Platform with Resume Deep-Dives and Job Description Cross-Examination.
 
-InterviewIQ isn't a static question bank. It reads your resume, deep-dives one of your real projects, adjusts difficulty question-by-question based on your answers, and — at the end — cross-checks what you *claimed* on your resume against what you actually *demonstrated*, producing a per-skill confidence report with a prioritized improvement roadmap.
+---
 
-## Features
+## Overview
 
-- **Resume parsing** — upload a PDF; an LLM extracts skills, projects, and experience (with a deterministic keyword-match fallback if no AI provider is available).
-- **Company personas** — Google (algorithms/Big-O), Amazon (Leadership Principles + system design), Startup (pragmatic, project-heavy), or General (balanced full-stack).
-- **Resume deep-dive** — the interview opens by picking one of your resume projects and probing its architecture and trade-offs, not a generic warm-up question.
-- **Adaptive difficulty** — each answer is scored, and the next question escalates or backs off accordingly.
-- **Resume truthfulness checker** — at the end of the session, claimed skills are cross-checked against what you actually demonstrated in your answers and rated 1–5.
-- **Final report** — overall score, per-skill confidence with evidence, strengths, weaknesses, and a prioritized (High/Medium/Low) improvement roadmap.
-- **Voice mode** — optional speech-to-text answers and text-to-speech questions via the browser's native Web Speech API.
-- **Session history & score trends** — past sessions and a score-over-time chart on the dashboard.
-- **Light/dark theme** with a persisted user preference.
+InterviewIQ is an adaptive technical interview platform. Unlike static question banks, InterviewIQ ingests candidate resumes and target job descriptions (JDs), deep-dives real-world projects, dynamically adjusts question difficulty based on live responses, and audits claimed competencies against demonstrated answers.
+
+```mermaid
+flowchart TD
+    A[Candidate Uploads Resume & Job Description] --> B[AI Parser extracts Skills, Projects & Requirements]
+    B --> C[Select Target Role & Company Persona]
+    C --> D[Adaptive Interview Engine]
+    D --> E[Real-Time Answer Evaluation 1-5 Scale]
+    E -->|High Score 4-5| F[Escalate Challenge & Architecture Depth]
+    E -->|Low Score 1-2| G[Pivot to Core Fundamentals & Record Weak Point]
+    E -->|Medium Score 3| H[Explore Lateral Technical Topics]
+    F & G & H --> I[Interview Memory tracks weak points across turns]
+    I --> D
+    D -->|End Session| J[Truthfulness Auditor & Final Report]
+    J --> K[Skill Confidence Matrix, Strengths, Weaknesses & Roadmap]
+```
+
+---
+
+## Core Capabilities
+
+### 1. Dual Document Ingestion: Resume + Job Description (JD)
+- **Resume Parsing**: PDF upload with automated extraction of technical projects, architecture summaries, and claimed skill tags.
+- **Job Description Parsing**: Supports both PDF upload and raw text paste. Extracts target role title, mandatory tech stack, experience levels, and core responsibilities.
+- **Cross-Examination Engine**: When both documents are present, the interview questions specifically target the intersection of the candidate's actual projects and the job description's critical requirements.
+- **Document Management**: Dedicated removal/replacement controls for both Resume and Job Description.
+
+### 2. Company Personas & Adaptive Difficulty
+- **Google Persona**: Data structures, algorithmic complexity (Big-O), system trade-offs, and edge cases.
+- **Amazon Persona**: Scalable architecture and Amazon Leadership Principles evaluated via the STAR method.
+- **Startup Persona**: Velocity, system trade-offs, production debugging, and technology stack mastery.
+- **General Persona**: Balanced CS fundamentals, full-stack design patterns, and code architecture.
+- **Dynamic Difficulty**: Real-time evaluation (1–5 scale) adjusts upcoming questions between Easy, Medium, and Hard tiers.
+- **Interview Memory**: Automatically tracks topics where the candidate scored $\le 2$ and circles back in later turns to re-evaluate comprehension.
+
+### 3. Resume Truthfulness Auditor & Final Report
+- **Truthfulness Rating**: Cross-examines claimed skills against direct transcript answers with per-skill confidence ratings (1–5) and concrete evidence quotes.
+- **Strengths & Weaknesses**: Highlights the top 3 demonstrated technical strengths and top 3 areas for growth.
+- **Prioritized Roadmap**: Actionable, prioritized steps (High, Medium, Low) for interview preparation.
+- **Performance Analytics**: Session history with score trend visualizations across past interviews.
+
+### 4. Multimodal Voice & Keyboard Interaction
+- **Dual Voice Architecture**: Browser-native Web Speech API (STT/TTS) with automatic server-side fallback transcription for restricted environments (such as Brave or privacy-hardened browsers).
+- **Keyboard Ergonomics**: `Enter` submits answers instantly, `Shift + Enter` inserts newlines, and `Spacebar` toggles recording in voice mode.
+
+---
 
 ## Tech Stack
 
-| Layer     | Technology                                                    |
-|-----------|-----------------------------------------------------------------|
-| Frontend  | React 19 + Vite, React Router                                  |
-| Backend   | Node.js + Express 5                                             |
-| Database  | MongoDB via Mongoose, with an in-memory fallback store for local dev when Mongo isn't running |
-| Auth      | JWT + bcrypt                                                    |
-| AI        | Groq (primary) with Gemini as automatic fallback; model IDs are env-configurable |
-| Resume parsing | `pdf-parse` + Multer for uploads                            |
-| Voice     | Browser Web Speech API (SpeechRecognition / speechSynthesis)   |
+| Layer | Technologies |
+|---|---|
+| Frontend | React 19, Vite, React Router 7 |
+| Styling & Theme | Custom token-based design system, CSS custom properties (Dark / Light mode) |
+| Backend | Node.js, Express 5 |
+| Database | MongoDB via Mongoose (with local JSON/in-memory persistence fallback) |
+| Authentication | JWT (JSON Web Tokens) with `bcryptjs` password hashing |
+| AI Integration | Groq (primary LLM provider) with Google Gemini automatic fallback |
+| Parsing & Voice | `multer`, `pdf-parse`, Web Speech API, Server audio transcription |
+| Testing | Vitest, Supertest, React Testing Library |
+
+---
 
 ## Project Structure
 
 ```
 InterviewIQ/
-├── client/               React + Vite frontend
-│   └── src/
-│       ├── pages/         Login, Register, Dashboard, ResumeUpload, InterviewSession, FinalReport
-│       ├── components/    Logo, ThemeToggle, ScoreTrendChart, SessionHistoryList, PrivateRoute
-│       ├── context/       AuthContext, ThemeContext
-│       └── hooks/         useSpeech (STT/TTS)
-├── server/               Express backend
-│   └── src/
-│       ├── routes/        auth, resume, session
-│       ├── models/        User, Resume, Session
-│       ├── services/      aiProvider (Groq/Gemini routing), gemini (resume parsing),
-│       │                   adaptiveEngine (persona + question generation), report (truthfulness + final report)
-│       └── db.js          Mongo connection + in-memory fallback store
-└── scripts/dev.js        Launches client + server together
+├── client/                     React + Vite Frontend
+│   ├── src/
+│   │   ├── components/         Logo, ThemeToggle, ScoreTrendChart, SessionHistoryList, Icon
+│   │   ├── context/            AuthContext, ThemeContext
+│   │   ├── hooks/              useSpeech (STT/TTS with server fallback)
+│   │   ├── pages/              Login, Register, Dashboard, ResumeUpload, InterviewSession, FinalReport
+│   │   ├── config/             API endpoint configuration
+│   │   └── index.css           Token design system, themes, and layout rules
+├── server/                     Express 5 Backend
+│   ├── src/
+│   │   ├── models/             User, Resume, JobDescription, Session
+│   │   ├── routes/             auth, resume, jd, session, speech
+│   │   ├── services/           aiProvider, gemini, adaptiveEngine, report
+│   │   ├── middleware/         auth
+│   │   ├── app.js              Express configuration & SPA static catch-all
+│   │   ├── db.js               MongoDB connection with JSON fallback store
+│   │   └── server.js           Application entry point
+├── test/                       Client and Server test suites
+└── scripts/dev.js              Concurrent full-stack dev launcher
 ```
+
+---
+
+## Deployment Architecture
+
+InterviewIQ is deployed as a single production service on **Render**:
+
+1. **Unified Production Build**: The client application is compiled via `npm run build --workspace=client` into `client/dist`.
+2. **SPA Serving & Express 5 Routing**: The Express backend statically serves `client/dist` and uses a fallback catch-all handler (`app.use((req, res) => res.sendFile(...))`) to route direct client URLs (such as `/dashboard` and `/resume`) to `index.html`.
+3. **API Protection**: Explicit `/api` 404 handlers ensure API errors always return structured JSON rather than falling through to HTML pages.
+4. **Free-Tier Keep-Alive**: An **UptimeRobot** monitor is configured to ping the application health endpoint every **5 minutes**. This prevents Render's free-tier instances from spinning down after 15 minutes of inactivity, ensuring instant response times for active users.
+
+---
 
 ## Getting Started
 
 ### Prerequisites
 - Node.js 18+
-- npm (workspaces are used — install once from the repo root)
-- A MongoDB instance (optional for local dev — the app falls back to an in-memory store if Mongo isn't reachable, but data won't persist across restarts)
-- At least one AI provider API key (Groq and/or Gemini) — without one, resume parsing and interview questions fall back to simpler heuristic logic
+- npm (workspaces enabled)
+- Groq API Key and/or Google Gemini API Key
 
-### Install
+### 1. Clone & Install
 
 ```bash
 git clone https://github.com/AdityaKrishnamurthy/InterviewIQ.git
@@ -64,68 +121,91 @@ cd InterviewIQ
 npm install
 ```
 
-### Configure environment
+### 2. Configure Environment
 
-Create a `.env.local` file in the repo root:
+Create a `.env.local` file in the root directory:
 
-```bash
+```env
 PORT=5000
 MONGO_URI=mongodb://localhost:27017/interviewiq
-JWT_SECRET=replace-with-a-long-random-string
-GROQ_API_KEY=your_groq_key
-GEMINI_API_KEY=your_gemini_key
+JWT_SECRET=your_jwt_secret_key_here
+GROQ_API_KEY=your_groq_api_key
+GEMINI_API_KEY=your_gemini_api_key
 
-# Optional overrides if a provider's default model is retired/unavailable on your account
-# GROQ_MODEL=openai/gpt-oss-120b
+# Optional Model Overrides
+# GROQ_MODEL=llama-3.3-70b-versatile
 # GEMINI_MODEL=gemini-2.0-flash
 ```
 
-### Run
+### 3. Launch Development Server
 
 ```bash
 npm run dev
 ```
 
-This starts both the backend and frontend together:
-- Frontend: http://localhost:3000
-- Backend: http://localhost:5000 (or whatever `PORT` is set to)
+- Frontend: `http://localhost:3000` (or `http://localhost:3002`)
+- Backend: `http://localhost:5000`
 
-Run them individually with `npm run server` or `npm run client` if needed.
+---
 
-## Tests
+## API Reference
+
+### Authentication
+| Method | Endpoint | Description | Auth |
+|---|---|---|---|
+| `POST` | `/api/auth/register` | Register a new account | No |
+| `POST` | `/api/auth/login` | Authenticate user and return JWT | No |
+| `GET` | `/api/auth/me` | Fetch authenticated user profile | Yes |
+
+### Resume Management
+| Method | Endpoint | Description | Auth |
+|---|---|---|---|
+| `POST` | `/api/resume/upload` | Upload & parse resume PDF via Multer | Yes |
+| `GET` | `/api/resume/latest` | Retrieve current user's active resume | Yes |
+| `DELETE` | `/api/resume/latest` | Remove current user's active resume | Yes |
+
+### Job Description (JD) Management
+| Method | Endpoint | Description | Auth |
+|---|---|---|---|
+| `POST` | `/api/jd/upload` | Upload JD via PDF or JSON raw text | Yes |
+| `GET` | `/api/jd/latest` | Retrieve current user's active JD | Yes |
+| `DELETE` | `/api/jd/latest` | Remove current user's active JD | Yes |
+
+### Interview Session Lifecycle
+| Method | Endpoint | Description | Auth |
+|---|---|---|---|
+| `GET` | `/api/session/personas` | Retrieve available interviewer personas | No |
+| `POST` | `/api/session/start` | Start session using active Resume + JD context | Yes |
+| `POST` | `/api/session/answer` | Submit answer; get evaluation & adaptive follow-up | Yes |
+| `POST` | `/api/session/:id/complete` | Complete session & generate Truthfulness Report | Yes |
+| `GET` | `/api/session/:id/report` | Retrieve final evaluation report | Yes |
+| `GET` | `/api/session/history` | Retrieve past session history and score metrics | Yes |
+| `DELETE` | `/api/session/:id` | Delete a specific interview session | Yes |
+
+### Speech & Audio
+| Method | Endpoint | Description | Auth |
+|---|---|---|---|
+| `POST` | `/api/speech/transcribe` | Fallback server-side audio transcription | Yes |
+
+---
+
+## Test Suites
+
+The test suites cover unit logic, adaptive algorithms, authentication flows, and component interactions:
 
 ```bash
-npm test              # both suites
-npm run test:server   # server only
-npm run test:client   # client only
+# Run both test suites
+npm test
+
+# Run backend tests only
+npm run test:server
+
+# Run frontend tests only
+npm run test:client
 ```
 
-- **Server** (Vitest + Supertest): unit tests for the adaptive difficulty ladder, the fallback resume parser, and the fallback report scoring; integration tests hitting the real Express app against an in-memory MongoDB.
-- **Client** (Vitest + Testing Library): Login form behavior and the AuthContext token lifecycle.
+---
 
-The first server run downloads a MongoDB binary for `mongodb-memory-server`, so it takes noticeably longer than subsequent runs. CI runs both suites and the client build on every push and PR to `main`.
+## License
 
-## API Overview
-
-| Method | Route                     | Description                                   |
-|--------|----------------------------|------------------------------------------------|
-| POST   | `/api/auth/register`       | Create an account                              |
-| POST   | `/api/auth/login`          | Log in, receive a JWT                          |
-| GET    | `/api/auth/me`             | Current user (auth required)                   |
-| POST   | `/api/resume/upload`       | Upload and parse a resume PDF (auth required)  |
-| GET    | `/api/resume/latest`       | Get the current user's latest parsed resume    |
-| GET    | `/api/session/personas`    | List available company personas                |
-| POST   | `/api/session/start`       | Start an interview session                      |
-| POST   | `/api/session/answer`      | Submit an answer, receive the next question     |
-| POST   | `/api/session/:id/complete`| End a session and trigger report generation     |
-| GET    | `/api/session/:id/report`  | Fetch the final report for a session            |
-| GET    | `/api/session/history`     | List the user's past sessions                   |
-| GET    | `/api/session/:id`         | Fetch a single session                          |
-| DELETE | `/api/session/:id`         | Delete a session (auth required)                |
-
-All routes above marked "auth required" expect `Authorization: Bearer <token>`.
-
-## Notes
-
-- If neither `GROQ_API_KEY` nor `GEMINI_API_KEY` is set (or a configured model becomes unavailable), the app degrades gracefully to keyword-based resume parsing and a simpler scoring heuristic rather than failing outright.
-- MongoDB is optional for local development but recommended for anything beyond a quick trial — the in-memory fallback does not persist across server restarts.
+MIT License. Designed and engineered for technical interview preparation.
