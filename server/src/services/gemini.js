@@ -113,7 +113,103 @@ const fallbackResumeParsing = (resumeText) => {
   };
 };
 
+/**
+ * Parses Job Description text using the configured LLM and returns structured JSON
+ * Handles multi-role JD documents by focusing on the specified targetRole if provided
+ */
+const parseJobDescriptionText = async (jdText, targetRole = '') => {
+  const roleInstruction = targetRole ? `
+NOTE: The user has specified the target role as "${targetRole}". If the document contains multiple job descriptions or positions, focus EXCLUSIVELY on extracting the requirements, skills, and responsibilities for the "${targetRole}" position.` : 'If multiple roles are described in the JD, extract requirements for the most prominent technical role.';
+
+  const systemPrompt = `You are an expert technical recruiter and senior engineering hiring manager.
+Analyze the provided Job Description (JD) text thoroughly and extract structured role requirements.
+${roleInstruction}
+You MUST return ONLY a valid JSON object matching this exact structure:
+{
+  "roleTitle": "${targetRole || 'Software Engineer'}",
+  "requiredSkills": ["React", "TypeScript", "Node.js", "System Design", "AWS"],
+  "responsibilities": [
+    "Design and build scalable microservices and APIs",
+    "Collaborate with product and design on feature delivery"
+  ],
+  "experienceLevel": "Mid-Senior (3-5 years)",
+  "summary": "A 2-sentence summary capturing the core mission and primary technical demands of the role."
+}`;
+
+  const userPrompt = `Extract role requirements, required tech stack, and responsibilities from this Job Description${targetRole ? ` specifically for the "${targetRole}" role` : ''}:\n\n"""\n${jdText}\n"""`;
+
+  try {
+    const parsed = await generateCompletion({
+      systemPrompt,
+      userPrompt,
+      jsonMode: true,
+    });
+
+    return {
+      roleTitle: parsed.roleTitle || targetRole || 'Software Engineer',
+      requiredSkills: Array.isArray(parsed.requiredSkills) ? parsed.requiredSkills : [],
+      responsibilities: Array.isArray(parsed.responsibilities) ? parsed.responsibilities : [],
+      experienceLevel: parsed.experienceLevel || '',
+      summary: parsed.summary || '',
+    };
+  } catch (err) {
+    console.warn('AI Job Description Parsing warning, using fallback:', err.message);
+    return fallbackJDParsing(jdText, targetRole);
+  }
+};
+
+/**
+ * Fallback parser for Job Description if API call fails
+ */
+const fallbackJDParsing = (jdText, targetRole = '') => {
+  const text = jdText || '';
+  const lines = text.split('\n').map((l) => l.trim()).filter(Boolean);
+
+  const skills = [];
+  const knownTech = [
+    'JavaScript', 'TypeScript', 'React', 'Node.js', 'Express', 'MongoDB',
+    'Python', 'Java', 'C++', 'Go', 'Rust', 'SQL', 'PostgreSQL', 'Docker',
+    'Kubernetes', 'AWS', 'GCP', 'Azure', 'Git', 'REST API', 'GraphQL',
+    'System Design', 'Microservices', 'CI/CD', 'Kafka', 'Redis'
+  ];
+
+  knownTech.forEach((tech) => {
+    const escaped = tech.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const left = /\w/.test(tech[0]) ? '\\b' : '';
+    const right = /\w/.test(tech[tech.length - 1]) ? '\\b' : '(?!\\w)';
+    const regex = new RegExp(`${left}${escaped}${right}`, 'i');
+    if (regex.test(text)) {
+      skills.push(tech);
+    }
+  });
+
+  let roleTitle = targetRole || 'Software Engineer';
+  if (!targetRole) {
+    for (const line of lines.slice(0, 5)) {
+      if (line.toLowerCase().includes('engineer') || line.toLowerCase().includes('developer') || line.toLowerCase().includes('architect')) {
+        roleTitle = line.replace(/^[#*-]\s*/, '').slice(0, 60);
+        break;
+      }
+    }
+  }
+
+  const responsibilities = lines
+    .filter((l) => /^(develop|build|design|collaborate|lead|maintain|implement|work)/i.test(l.replace(/^[-•*]\s*/, '')))
+    .slice(0, 4)
+    .map((l) => l.replace(/^[-•*]\s*/, ''));
+
+  return {
+    roleTitle,
+    requiredSkills: skills.length > 0 ? Array.from(new Set(skills)) : ['JavaScript', 'System Design'],
+    responsibilities: responsibilities.length > 0 ? responsibilities : ['Build and maintain robust software systems'],
+    experienceLevel: 'Technical Professional',
+    summary: `Target position for ${roleTitle} requiring proficiency in ${skills.slice(0, 4).join(', ') || 'core software engineering'}.`,
+  };
+};
+
 module.exports = {
   parseResumeText,
   fallbackResumeParsing,
+  parseJobDescriptionText,
+  fallbackJDParsing,
 };

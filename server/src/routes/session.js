@@ -4,7 +4,7 @@ const crypto = require('crypto');
 const mongoose = require('mongoose');
 
 const authMiddleware = require('../middleware/auth');
-const { sessionStore, resumeStore } = require('../db');
+const { sessionStore, resumeStore, jdStore } = require('../db');
 const {
   PERSONAS,
   generateInitialQuestion,
@@ -24,7 +24,7 @@ router.get('/personas', (req, res) => {
 // @access  Private
 router.post('/start', authMiddleware, async (req, res) => {
   try {
-    const { companyPersona = 'General', targetRole = 'Software Engineer', resumeId } = req.body;
+    const { companyPersona = 'General', targetRole = 'Software Engineer', resumeId, jdId } = req.body;
 
     let resumeObj = null;
     if (resumeId) {
@@ -34,13 +34,23 @@ router.post('/start', authMiddleware, async (req, res) => {
       resumeObj = await resumeStore.findLatestByUserId(req.user.id);
     }
 
+    let jdObj = null;
+    if (jdId) {
+      jdObj = await jdStore.findById(jdId);
+    }
+    if (!jdObj) {
+      jdObj = await jdStore.findLatestByUserId(req.user.id);
+    }
+
     const resumeData = resumeObj ? resumeObj.parsedData : null;
+    const jdData = jdObj ? jdObj.parsedData : null;
 
     // Generate initial greeting & first question
     const initial = await generateInitialQuestion({
       persona: companyPersona,
-      targetRole,
+      targetRole: jdData?.roleTitle || targetRole,
       resumeData,
+      jdData,
     });
 
     const initialMessage = {
@@ -54,8 +64,9 @@ router.post('/start', authMiddleware, async (req, res) => {
     const session = await sessionStore.create({
       userId: req.user.id,
       resumeId: resumeObj ? resumeObj._id : null,
+      jdId: jdObj ? jdObj._id : null,
       companyPersona,
-      targetRole,
+      targetRole: jdData?.roleTitle || targetRole,
       currentDifficulty: 'medium',
       messages: [initialMessage],
       topicHistory: [initial.topic],
@@ -101,18 +112,25 @@ router.post('/answer', authMiddleware, async (req, res) => {
     const lastInterviewerMsg = interviewerMessages[interviewerMessages.length - 1];
     const previousQuestion = lastInterviewerMsg ? lastInterviewerMsg.content : 'Tell me about your technical background.';
 
-    // Fetch resume context if available
+    // Fetch resume & JD context if available
     let resumeData = null;
     if (session.resumeId) {
       const resumeObj = await resumeStore.findById(session.resumeId);
       if (resumeObj) resumeData = resumeObj.parsedData;
     }
 
-    // Evaluate answer with Groq AI + Interview Memory
+    let jdData = null;
+    if (session.jdId) {
+      const jdObj = await jdStore.findById(session.jdId);
+      if (jdObj) jdData = jdObj.parsedData;
+    }
+
+    // Evaluate answer with Groq AI + Interview Memory & JD Context
     const evaluationResult = await evaluateAndGenerateFollowup({
       persona: session.companyPersona,
       targetRole: session.targetRole,
       resumeData,
+      jdData,
       currentDifficulty: session.currentDifficulty,
       previousQuestion,
       candidateAnswer: answer,
@@ -201,9 +219,16 @@ router.post('/:id/complete', authMiddleware, async (req, res) => {
       if (resumeObj) resumeData = resumeObj.parsedData;
     }
 
+    let jdData = null;
+    if (session.jdId) {
+      const jdObj = await jdStore.findById(session.jdId);
+      if (jdObj) jdData = jdObj.parsedData;
+    }
+
     // Run Truthfulness Checker & Report Generator
     const reportResults = await generateTruthfulnessAndReport({
       resumeData,
+      jdData,
       sessionMessages: session.messages,
       targetRole: session.targetRole,
       persona: session.companyPersona,

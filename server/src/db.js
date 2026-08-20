@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 const User = require('./models/User');
 const Resume = require('./models/Resume');
+const JobDescription = require('./models/JobDescription');
 const Session = require('./models/Session');
 const fs = require('fs');
 const path = require('path');
@@ -8,6 +9,7 @@ const path = require('path');
 // In-memory data structures with automatic JSON file persistence fallback
 const memoryUsers = new Map();
 const memoryResumes = new Map();
+const memoryJobDescriptions = new Map();
 const memorySessions = new Map();
 
 const DB_FILE = path.join(__dirname, '../../.local_db.json');
@@ -36,6 +38,16 @@ const loadMemoryStore = () => {
           memoryResumes.set(r._id, r);
         });
       }
+      if (Array.isArray(data.jobDescriptions)) {
+        data.jobDescriptions.forEach((j) => {
+          j.save = async function () {
+            memoryJobDescriptions.set(this._id, this);
+            saveMemoryStore();
+            return this;
+          };
+          memoryJobDescriptions.set(j._id, j);
+        });
+      }
       if (Array.isArray(data.sessions)) {
         data.sessions.forEach((s) => {
           s.save = async function () {
@@ -58,6 +70,7 @@ const saveMemoryStore = () => {
     const data = {
       users: Array.from(memoryUsers.values()),
       resumes: Array.from(memoryResumes.values()),
+      jobDescriptions: Array.from(memoryJobDescriptions.values()),
       sessions: Array.from(memorySessions.values()),
     };
     fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2), 'utf8');
@@ -167,6 +180,122 @@ const resumeStore = {
     saveMemoryStore();
     return resume;
   },
+
+  deleteLatestByUserId: async (userId) => {
+    if (!userId) return false;
+    if (isDbConnected()) {
+      const latest = await Resume.findOne({ userId }).sort({ createdAt: -1 });
+      if (!latest) return false;
+      const res = await Resume.deleteOne({ _id: latest._id });
+      return res.deletedCount > 0;
+    }
+    const userResumes = Array.from(memoryResumes.values())
+      .filter((r) => r.userId.toString() === userId.toString())
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    if (userResumes.length > 0) {
+      memoryResumes.delete(userResumes[0]._id.toString());
+      saveMemoryStore();
+      return true;
+    }
+    return false;
+  },
+
+  deleteByIdAndUserId: async (id, userId) => {
+    if (!id || !userId) return false;
+    if (isDbConnected()) {
+      const res = await Resume.deleteOne({ _id: id, userId });
+      return res.deletedCount > 0;
+    }
+    const r = memoryResumes.get(id.toString());
+    if (r && r.userId.toString() === userId.toString()) {
+      memoryResumes.delete(id.toString());
+      saveMemoryStore();
+      return true;
+    }
+    return false;
+  },
+};
+
+// Job Description Store Adapter
+const jdStore = {
+  findById: async (id) => {
+    if (!id) return null;
+    if (isDbConnected()) {
+      return await JobDescription.findById(id);
+    }
+    return memoryJobDescriptions.get(id.toString()) || null;
+  },
+
+  findLatestByUserId: async (userId) => {
+    if (!userId) return null;
+    if (isDbConnected()) {
+      return await JobDescription.findOne({ userId }).sort({ createdAt: -1 });
+    }
+    const userJDs = Array.from(memoryJobDescriptions.values())
+      .filter((j) => j.userId.toString() === userId.toString())
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    return userJDs[0] || null;
+  },
+
+  create: async ({ userId, title, filename, rawText, parsedData }) => {
+    if (isDbConnected()) {
+      const jd = new JobDescription({ userId, title, filename, rawText, parsedData });
+      await jd.save();
+      return jd;
+    }
+    const id = new mongoose.Types.ObjectId().toString();
+    const jd = {
+      _id: id,
+      userId: userId.toString(),
+      title: title || 'Target Role',
+      filename: filename || '',
+      rawText: rawText || '',
+      parsedData: parsedData || {},
+      createdAt: new Date(),
+      save: async function () {
+        memoryJobDescriptions.set(this._id, this);
+        saveMemoryStore();
+        return this;
+      },
+    };
+    memoryJobDescriptions.set(id, jd);
+    saveMemoryStore();
+    return jd;
+  },
+
+  deleteLatestByUserId: async (userId) => {
+    if (!userId) return false;
+    if (isDbConnected()) {
+      const latest = await JobDescription.findOne({ userId }).sort({ createdAt: -1 });
+      if (!latest) return false;
+      const res = await JobDescription.deleteOne({ _id: latest._id });
+      return res.deletedCount > 0;
+    }
+    const userJDs = Array.from(memoryJobDescriptions.values())
+      .filter((j) => j.userId.toString() === userId.toString())
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    if (userJDs.length > 0) {
+      memoryJobDescriptions.delete(userJDs[0]._id.toString());
+      saveMemoryStore();
+      return true;
+    }
+    return false;
+  },
+
+  deleteByIdAndUserId: async (id, userId) => {
+    if (!id || !userId) return false;
+    if (isDbConnected()) {
+      const res = await JobDescription.deleteOne({ _id: id, userId });
+      return res.deletedCount > 0;
+    }
+    const j = memoryJobDescriptions.get(id.toString());
+    if (j && j.userId.toString() === userId.toString()) {
+      memoryJobDescriptions.delete(id.toString());
+      saveMemoryStore();
+      return true;
+    }
+    return false;
+  },
 };
 
 // Session Store Adapter
@@ -256,5 +385,6 @@ module.exports = {
   isDbConnected,
   userStore,
   resumeStore,
+  jdStore,
   sessionStore,
 };

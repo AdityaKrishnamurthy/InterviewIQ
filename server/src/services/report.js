@@ -3,8 +3,8 @@ const { generateCompletion } = require('./aiProvider');
 /**
  * Generates Truthfulness Rating & Final Technical Interview Report
  */
-const generateTruthfulnessAndReport = async ({ resumeData, sessionMessages, targetRole, persona }) => {
-  const claimedSkills = resumeData?.skills || ['JavaScript', 'Software Engineering', 'System Design'];
+const generateTruthfulnessAndReport = async ({ resumeData, jdData, sessionMessages, targetRole, persona }) => {
+  const claimedSkills = resumeData?.skills || (jdData?.requiredSkills ? jdData.requiredSkills.slice(0, 5) : ['JavaScript', 'Software Engineering', 'System Design']);
   const claimedProjects = resumeData?.projects || [];
 
   // Filter Q&A turns
@@ -31,10 +31,17 @@ const generateTruthfulnessAndReport = async ({ resumeData, sessionMessages, targ
     )
     .join('\n\n');
 
+  const jdContext = jdData ? `
+Target Job Description (JD) Requirements:
+- Position: ${jdData.roleTitle || targetRole}
+- Required Skills: ${jdData.requiredSkills?.join(', ') || 'N/A'}
+- Key Responsibilities: ${jdData.responsibilities?.join('; ') || 'N/A'}
+` : '';
+
   const systemPrompt = `You are a Senior Principal Technical Interviewer and Resume Truthfulness Auditor.
 Target Role: ${targetRole}
 Interview Persona: ${persona}
-
+${jdContext}
 Claimed Resume Skills:
 ${claimedSkills.join(', ')}
 
