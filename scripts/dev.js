@@ -3,11 +3,14 @@ const path = require('path');
 
 const rootDir = path.join(__dirname, '..');
 
+require('dotenv').config({ path: path.join(rootDir, '.env.local') });
+
 console.log('\n=========================================');
 console.log('🚀 Launching InterviewIQ Full Stack');
 console.log('=========================================');
+const backendPort = process.env.PORT || 5000;
 console.log('• Frontend: http://localhost:3000');
-console.log('• Backend:  http://localhost:3001');
+console.log(`• Backend:  http://localhost:${backendPort}`);
 console.log('=========================================\n');
 
 // Start Express Backend
