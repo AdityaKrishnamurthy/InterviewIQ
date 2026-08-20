@@ -1,17 +1,24 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import useSpeech from '../hooks/useSpeech';
 import ThemeToggle from '../components/ThemeToggle';
 import Logo from '../components/Logo';
+import { Mic, Speaker, Cloud, Link as LinkIcon, Spinner } from '../components/Icon';
 import { API_BASE_URL } from '../config/api';
 
 const PERSONAS_LIST = [
-  { id: 'Google',  title: 'Google Persona',  icon: '🔍', color: '#4285F4', tag: 'Algorithms & Big-O', desc: 'LeetCode, DSA, algorithmic complexity, and edge case rigor.' },
-  { id: 'Amazon',  title: 'Amazon Persona',  icon: '📦', color: '#FF9900', tag: 'Leadership & STAR',    desc: 'Behavioral questions, STAR method, customer obsession & system scalability.' },
-  { id: 'Startup', title: 'Startup Persona', icon: '🚀', color: '#00D4AA', tag: 'Systems & Velocity',   desc: 'Architecture, project deep-dives, production trade-offs, and rapid delivery.' },
-  { id: 'General', title: 'General Persona', icon: '💻', color: '#6C63FF', tag: 'Full-Stack Technical', desc: 'Balanced CS fundamentals, web development, and code reviews.' },
+  { id: 'Google',  mark: 'G',  title: 'Google Persona',  color: 'var(--primary)',     tag: 'Algorithms & Big-O',       desc: 'LeetCode, DSA, algorithmic complexity, and edge case rigor.' },
+  { id: 'Amazon',  mark: 'A',  title: 'Amazon Persona',  color: 'var(--warning)',     tag: 'Leadership & STAR',         desc: 'Behavioral questions, STAR method, customer obsession & system scalability.' },
+  { id: 'Startup', mark: 'S',  title: 'Startup Persona', color: 'var(--secondary)',   tag: 'Systems & Velocity',        desc: 'Architecture, project deep-dives, production trade-offs, and rapid delivery.' },
+  { id: 'General', mark: 'GN', title: 'General Persona', color: 'var(--primary-ink)', tag: 'Full-Stack Technical',      desc: 'Balanced CS fundamentals, web development, and code reviews.' },
 ];
+
+const getDiff = (d) => ({
+  easy:   { color: 'var(--success)', label: 'Easy'   },
+  hard:   { color: 'var(--seal)',    label: 'Hard'   },
+  medium: { color: 'var(--warning)', label: 'Medium' },
+}[d] ?? { color: 'var(--warning)', label: 'Medium' });
 
 const InterviewSession = () => {
   const [selectedPersona, setSelectedPersona] = useState('Google');
@@ -157,21 +164,14 @@ const InterviewSession = () => {
     }
   };
 
-  const getDiff = (d) => ({
-    easy:   { bg: 'rgba(0,212,170,.15)',  color: 'var(--success)', border: 'var(--success)', label: 'Easy'   },
-    hard:   { bg: 'rgba(255,107,107,.15)', color: 'var(--error)',  border: 'var(--error)',  label: 'Hard'   },
-    medium: { bg: 'rgba(255,179,71,.15)',  color: 'var(--warning)', border: 'var(--warning)', label: 'Medium' },
-  }[d] ?? { bg: 'rgba(255,179,71,.15)', color: 'var(--warning)', border: 'var(--warning)', label: 'Medium' });
-
   /* ──────────────── RENDER ──────────────── */
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
 
-      {/* Navbar */}
       <header className="navbar">
         <Logo to="/dashboard" />
         <div className="nav-user">
-          <button onClick={() => navigate('/resume')} className="btn btn-secondary">Resume Specs</button>
+          <button onClick={() => navigate('/resume')} className="btn btn-secondary">Upload Resume</button>
           <ThemeToggle />
           <button onClick={logout} className="btn btn-secondary">Sign Out</button>
         </div>
@@ -179,7 +179,6 @@ const InterviewSession = () => {
 
       <main className="dashboard-container" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
 
-        {/* Global errors */}
         {error && <div className="alert-error" style={{ marginBottom: '1rem' }}>{error}</div>}
 
         {/* Speech errors — only surfaced when the mic is genuinely unusable.
@@ -188,9 +187,9 @@ const InterviewSession = () => {
         {speechError && ['not-allowed', 'transcription-failed', 'unsupported'].includes(speechError) && (
           <div className="alert-error" style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
             <span>
-              {speechError === 'not-allowed' && '🎤 Microphone access denied. Allow mic access in browser settings, then retry.'}
-              {speechError === 'transcription-failed' && '🎤 Voice transcription failed — check your connection, or switch to Text Mode.'}
-              {speechError === 'unsupported' && '🎤 Voice input isn’t available in this browser. Switch to Text Mode.'}
+              {speechError === 'not-allowed' && 'Microphone access denied. Allow mic access in browser settings, then retry.'}
+              {speechError === 'transcription-failed' && 'Voice transcription failed — check your connection, or switch to Text Mode.'}
+              {speechError === 'unsupported' && 'Voice input isn’t available in this browser. Switch to Text Mode.'}
             </span>
             <button onClick={() => { setSpeechError(''); }} className="btn btn-secondary"
               style={{ width: 'auto', padding: '0.35rem 0.75rem', fontSize: '0.8rem' }}>
@@ -202,123 +201,101 @@ const InterviewSession = () => {
         {/* ── SETUP SCREEN ── */}
         {!session ? (
           <div>
-            <div style={{ marginBottom: '2rem' }}>
-              <h1 style={{ fontSize: '2rem', fontWeight: 700, marginBottom: '0.5rem' }}>
-                Adaptive Technical Interview Session
-              </h1>
-              <p style={{ color: 'var(--text-secondary)' }}>
-                Select a company persona. The AI will analyse your answers and adapt difficulty in real time.
-              </p>
+            <div className="docket-heading">
+              <h1 style={{ fontSize: '1.6rem' }}>Start Interview</h1>
             </div>
+            <p style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem', maxWidth: '65ch' }}>
+              Select the persona for your interview. The interviewer adapts difficulty in real time
+              from your answers.
+            </p>
 
-            <div className="auth-card" style={{ maxWidth: '100%', marginBottom: '2rem' }}>
-              <div className="form-group" style={{ marginBottom: '1.5rem' }}>
-                <label className="form-label">Target Role / Position</label>
-                <input type="text" className="form-input" value={targetRole}
+            <div className="paper" style={{ padding: '1.75rem', marginBottom: '1.5rem' }}>
+              <div className="form-group">
+                <label className="form-label" htmlFor="targetRole">Target Role / Position</label>
+                <input id="targetRole" type="text" className="form-input" value={targetRole}
                   onChange={(e) => setTargetRole(e.target.value)}
                   placeholder="e.g. Senior Frontend Engineer" />
               </div>
-
-              <h3 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: '1rem', color: 'var(--text-primary)' }}>
-                Select Company Persona
-              </h3>
-
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
-                {PERSONAS_LIST.map((p) => {
-                  const sel = selectedPersona === p.id;
-                  return (
-                    <div key={p.id} onClick={() => setSelectedPersona(p.id)} style={{
-                      padding: '1.25rem', borderRadius: 'var(--radius-md)', cursor: 'pointer',
-                      background: sel ? `rgba(108,99,255,.12)` : 'var(--bg-main)',
-                      border: sel ? `2px solid ${p.color}` : '1px solid var(--border-color)',
-                      boxShadow: sel ? `0 0 16px rgba(108, 99, 255, 0.2)` : 'none',
-                      transition: 'all .2s ease',
-                    }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                          <span style={{ fontSize: '1.2rem' }}>{p.icon}</span>
-                          <h4 style={{ fontSize: '1.05rem', fontWeight: 600, color: 'var(--text-primary)' }}>{p.title}</h4>
-                        </div>
-                        <span style={{ fontSize: '0.72rem', padding: '0.15rem 0.5rem', borderRadius: '12px',
-                          background: sel ? p.color : 'var(--bg-surface)',
-                          color: sel ? '#FFF' : 'var(--text-secondary)', fontWeight: 600 }}>{p.tag}</span>
-                      </div>
-                      <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', lineHeight: 1.5 }}>{p.desc}</p>
-                    </div>
-                  );
-                })}
-              </div>
-
-              <button onClick={handleStartSession} className="btn btn-primary" disabled={starting}
-                style={{ width: '100%', padding: '1rem' }}>
-                {starting ? 'Initializing Interview Agent...' : `Start ${selectedPersona} Interview →`}
-              </button>
             </div>
+
+            <h3 style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', fontFamily: 'var(--font-sans)', fontWeight: 700 }}>
+              Choose Persona
+            </h3>
+
+            <div className="persona-docket" style={{ marginBottom: '1.5rem' }}>
+              {PERSONAS_LIST.map((p) => {
+                const sel = selectedPersona === p.id;
+                return (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => setSelectedPersona(p.id)}
+                    className={`persona-file ${sel ? 'selected' : ''}`}
+                  >
+                    <span className="persona-file-mark" style={sel ? { color: p.color, borderColor: p.color } : undefined}>
+                      {p.mark}
+                    </span>
+                    <span style={{ flex: 1 }}>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
+                        <span className="persona-file-name">{p.title}</span>
+                        <span className="persona-file-tag">{p.tag}</span>
+                      </span>
+                      <span className="persona-file-desc">{p.desc}</span>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            <button onClick={handleStartSession} className="btn btn-seal" disabled={starting}
+              style={{ width: '100%', padding: '1rem' }}>
+              {starting ? 'Starting…' : `Start ${selectedPersona} Interview →`}
+            </button>
           </div>
 
         ) : (
         /* ── INTERVIEW SCREEN ── */
-          <div style={{ display: 'flex', flexDirection: 'column', flex: 1, gap: '1rem' }}>
+          <div className="interview-shell" style={{ flex: 1 }}>
 
-            {/* Status bar */}
-            <div className="auth-card" style={{
-              maxWidth: '100%', padding: '1rem 1.5rem',
-              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-              flexWrap: 'wrap', gap: '1rem',
-            }}>
+            {/* Case caption */}
+            <div className="case-caption">
               <div>
-                <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Interview Persona</span>
-                <h3 style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--primary)' }}>
-                  {session.companyPersona} Agent — {session.targetRole}
-                </h3>
+                <div className="case-caption-title">Live Interview</div>
+                <div className="case-caption-name">{session.companyPersona} Persona — {session.targetRole}</div>
               </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
-                {/* Voice toggle */}
+              <div className="case-caption-controls">
                 <button onClick={toggleVoiceMode}
                   className={`voice-toggle-btn ${voiceMode ? 'active' : ''}`}
                   disabled={!isSttSupported}
                   title={!isSttSupported ? 'Voice mode requires microphone access in a supported browser' : undefined}>
-                  {voiceMode ? '🎤 Voice Mode' : '⌨️ Text Mode'}
+                  <Mic size={13} /> {voiceMode ? 'Voice' : 'Text'}
                 </button>
 
                 {voiceMode && (
                   <span className="voice-indicator">
-                    {isSpeaking ? '🔊 AI Speaking...' : isTranscribing ? '☁️ Transcribing...' : isListening ? '🎙️ Recording...' : '🎤 Ready'}
+                    {isSpeaking ? <><Speaker size={12} /> Speaking</> : isTranscribing ? <><Cloud size={12} /> Transcribing</> : isListening ? 'Recording' : 'Ready'}
                   </span>
                 )}
 
                 {voiceMode && sttEngine === 'fallback' && (
                   <span className="stt-engine-badge" title="Your browser blocks the built-in speech engine (common on Brave), so answers are transcribed on the server instead.">
-                    ☁️ Server transcription
+                    <Cloud size={11} /> Server transcription
                   </span>
                 )}
 
-                {/* Difficulty */}
                 {(() => { const d = getDiff(session.currentDifficulty); return (
-                  <div>
-                    <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'block' }}>Difficulty</span>
-                    <span style={{ display: 'inline-block', background: d.bg, color: d.color,
-                      border: `1px solid ${d.border}`, padding: '0.2rem 0.75rem',
-                      borderRadius: '20px', fontSize: '0.85rem', fontWeight: 700 }}>
-                      ⚡ {d.label.toUpperCase()}
-                    </span>
-                  </div>
+                  <span className="difficulty-tag" style={{ color: d.color }}>{d.label}</span>
                 ); })()}
 
-                {/* Score */}
                 {typeof session.overallScore === 'number' && session.overallScore > 0 && (
-                  <div>
-                    <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'block' }}>Score</span>
-                    <span style={{ fontSize: '1rem', fontWeight: 700,
-                      color: session.overallScore >= 4 ? 'var(--success)' : 'var(--warning)' }}>
-                      {session.overallScore} / 5.0
-                    </span>
-                  </div>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.9rem', fontWeight: 700,
+                    color: session.overallScore >= 4 ? 'var(--success)' : 'var(--warning)' }}>
+                    {session.overallScore} / 5.0
+                  </span>
                 )}
 
-                {/* End */}
-                <button className="btn btn-secondary" style={{ padding: '0.5rem 1rem', fontSize: '0.85rem' }}
+                <button className="btn btn-secondary" style={{ padding: '0.55rem 1rem', fontSize: '0.78rem' }}
                   onClick={async () => {
                     try {
                       setSubmitting(true);
@@ -330,68 +307,68 @@ const InterviewSession = () => {
                     } catch { setError('Error completing session'); }
                     finally { setSubmitting(false); }
                   }}>
-                  End & View Report →
+                  End Interview →
                 </button>
               </div>
             </div>
 
-            {/* Feedback banner */}
+            {/* Feedback */}
             {lastFeedback && (
-              <div style={{
-                background: lastFeedback.score >= 4 ? 'rgba(0,212,170,.1)' : 'rgba(255,179,71,.1)',
-                border: `1px solid ${lastFeedback.score >= 4 ? 'var(--success)' : 'var(--warning)'}`,
-                borderRadius: 'var(--radius-md)', padding: '0.85rem 1.25rem',
+              <div className="finding-row" style={{
                 display: 'flex', alignItems: 'center', gap: '1rem', fontSize: '0.9rem',
               }}>
-                <div style={{ fontWeight: 700, fontSize: '1.1rem',
-                  color: lastFeedback.score >= 4 ? 'var(--success)' : 'var(--warning)' }}>
-                  Score: {lastFeedback.score}/5
-                </div>
-                <div style={{ color: 'var(--text-primary)', flex: 1 }}>{lastFeedback.feedback}</div>
-                <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                <span className="ruling-tag" style={{
+                  fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: '0.95rem',
+                  color: lastFeedback.score >= 4 ? 'var(--success)' : 'var(--warning)',
+                  borderColor: lastFeedback.score >= 4 ? 'var(--success)' : 'var(--warning)',
+                }}>
+                  {lastFeedback.score}/5
+                </span>
+                <div style={{ color: 'var(--ink)', flex: 1 }}>{lastFeedback.feedback}</div>
+                <div style={{ fontSize: '0.78rem', color: 'var(--ink-secondary)' }}>
                   Difficulty → <strong>{lastFeedback.newDifficulty}</strong>
                 </div>
               </div>
             )}
 
-            {/* Conversation */}
-            <div style={{
-              flex: 1, minHeight: '340px', maxHeight: '480px', overflowY: 'auto',
-              background: 'var(--bg-surface)', border: '1px solid var(--border-color)',
-              borderRadius: 'var(--radius-lg)', padding: '1.5rem',
-              display: 'flex', flexDirection: 'column', gap: '1.25rem',
-            }}>
+            {/* Transcript */}
+            <div className="transcript">
               {session.messages.map((msg, idx) => {
                 const isAI = msg.role === 'interviewer';
                 return (
-                  <div key={msg.id || idx} style={{ display: 'flex', flexDirection: 'column',
-                    alignItems: isAI ? 'flex-start' : 'flex-end' }}>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.25rem',
-                      display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                      <span>{isAI ? `🤖 AI Interviewer (${msg.difficulty || 'medium'})` : '👤 You'}</span>
-                      {isAI && voiceMode && isSpeaking && idx === session.messages.length - 1 && (
-                        <span className="voice-indicator" style={{ fontSize: '0.7rem' }}>
-                          🔊 Speaking...
-                          <button onClick={stopSpeaking} style={{
-                            background: 'none', border: 'none', color: 'var(--error)',
-                            cursor: 'pointer', fontSize: '0.7rem', marginLeft: '0.35rem', padding: 0,
-                          }}>🔇 Stop</button>
-                        </span>
+                  <div key={msg.id || idx} className="transcript-line">
+                    <span className="transcript-line-no">{String(idx + 1).padStart(2, '0')}</span>
+                    <div className="transcript-line-body">
+                      <div className={`transcript-speaker ${!isAI ? 'candidate' : ''}`}>
+                        {isAI ? `Interviewer · ${msg.difficulty || 'medium'}` : 'Candidate'}
+                        {isAI && voiceMode && isSpeaking && idx === session.messages.length - 1 && (
+                          <span className="voice-indicator" style={{ fontSize: '0.66rem' }}>
+                            <Speaker size={10} /> Speaking
+                            <button onClick={stopSpeaking} style={{
+                              background: 'none', border: 'none', color: 'var(--seal)',
+                              cursor: 'pointer', fontSize: '0.66rem', marginLeft: '0.35rem', padding: 0, textDecoration: 'underline',
+                            }}>Stop</button>
+                          </span>
+                        )}
+                      </div>
+                      <div className={`transcript-text ${isAI ? 'interviewer' : 'candidate'}`}>
+                        {msg.content}
+                      </div>
+                      {msg.recall && (
+                        <div className="transcript-recall-link">
+                          <LinkIcon size={11} /> Recalls earlier weak point
+                        </div>
                       )}
                     </div>
-                    <div style={{
-                      maxWidth: '85%', padding: '1rem 1.25rem', borderRadius: 'var(--radius-md)',
-                      background: isAI ? 'var(--bg-main)' : 'rgba(108,99,255,.15)',
-                      border: isAI ? '1px solid var(--border-color)' : '1px solid var(--primary)',
-                      color: 'var(--text-primary)', lineHeight: 1.6, whiteSpace: 'pre-wrap',
-                    }}>{msg.content}</div>
                   </div>
                 );
               })}
               {submitting && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem',
-                  color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-                  ⏳ Evaluating and generating next question...
+                <div className="transcript-line">
+                  <span className="transcript-line-no" aria-hidden="true">···</span>
+                  <div className="transcript-line-body" style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', color: 'var(--ink-secondary)', fontSize: '0.9rem' }}>
+                    <Spinner size={14} /> Evaluating and preparing next question…
+                  </div>
                 </div>
               )}
               <div ref={messagesEndRef} />
@@ -399,40 +376,38 @@ const InterviewSession = () => {
 
             {/* ── INPUT AREA ── */}
             {voiceMode ? (
-              /* VOICE MODE */
               <div className="voice-input-area">
 
-                {/* Status label */}
-                <div style={{ textAlign: 'center', fontSize: '0.9rem', fontWeight: 600 }}>
+                <div style={{ textAlign: 'center', fontSize: '0.9rem', fontWeight: 600, fontFamily: 'var(--font-mono)' }}>
                   {submitting ? (
-                    <span style={{ color: 'var(--text-secondary)' }}>Submitting…</span>
+                    <span style={{ color: 'var(--ink-secondary)' }}>Submitting…</span>
                   ) : isTranscribing ? (
-                    <span style={{ color: 'var(--primary)' }}>☁️ Transcribing your answer…</span>
+                    <span style={{ color: 'var(--primary)' }}>Transcribing your answer…</span>
                   ) : isListening ? (
                     speechDetected || sttEngine === 'fallback'
-                      ? <span style={{ color: 'var(--success)' }}>🎙️ Capturing speech — tap mic or press Space to stop</span>
-                      : <span style={{ color: 'var(--error)' }}>🎙️ Listening… speak now</span>
+                      ? <span style={{ color: 'var(--success)' }}>Capturing speech — tap mic or press Space to stop</span>
+                      : <span style={{ color: 'var(--seal)' }}>Listening… speak now</span>
                   ) : isSpeaking ? (
-                    <span style={{ color: 'var(--primary)' }}>🔊 AI is speaking… tap mic to skip</span>
+                    <span style={{ color: 'var(--primary)' }}>AI is speaking… tap mic to skip</span>
                   ) : (
-                    <span style={{ color: 'var(--text-secondary)' }}>Tap mic or press Space to record</span>
+                    <span style={{ color: 'var(--ink-secondary)' }}>Tap mic or press Space to record</span>
                   )}
                 </div>
 
-                {/* Mic button */}
                 <button type="button" onClick={handleMicClick} disabled={submitting || isTranscribing}
-                  className={`mic-button ${isListening ? 'listening' : isSpeaking ? 'speaking' : isTranscribing ? 'transcribing' : ''}`}>
+                  className={`mic-button ${isListening ? 'listening' : isSpeaking ? 'speaking' : isTranscribing ? 'transcribing' : ''}`}
+                  aria-label={isListening ? 'Stop recording your answer' : 'Start recording your answer'}
+                  title={isListening ? 'Stop recording' : 'Start recording'}>
                   {submitting || isTranscribing
-                    ? <span style={{ fontSize: '1.5rem' }}>⏳</span>
+                    ? <Spinner size={22} />
                     : isListening
-                      ? <div className="waveform-bars"><span/><span/><span/><span/><span/></div>
-                      : <span style={{ fontSize: '1.8rem' }}>🎤</span>}
+                      ? <div className="waveform-bars" aria-hidden="true"><span/><span/><span/><span/><span/></div>
+                      : <Mic size={26} />}
                 </button>
 
-                {/* Editable textarea — shows spoken text; user can also type */}
                 <div style={{ width: '100%' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between',
-                    fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '0.3rem' }}>
+                    fontSize: '0.76rem', color: 'var(--ink-secondary)', marginBottom: '0.3rem' }}>
                     <span>Your answer (edit freely or just speak):</span>
                     {answer.trim() && (
                       <span>{answer.trim().split(/\s+/).length} words</span>
@@ -445,68 +420,92 @@ const InterviewSession = () => {
                     value={answer}
                     onChange={(e) => {
                       setAnswer(e.target.value);
-                      // keep transcript in sync so submit uses latest text
                       setTranscript(e.target.value);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        if (answer.trim() && !submitting) {
+                          handleSendAnswer(e, answer);
+                        }
+                      }
                     }}
                     placeholder={
                       isListening
                         ? 'Spoken words appear here in real time…'
-                        : 'Tap the mic to speak, or type your answer here…'
+                        : 'Tap the mic to speak, or type your answer here… (Enter to submit, Shift+Enter for newline)'
                     }
                     disabled={submitting}
                     style={{ resize: 'vertical' }}
                   />
                   {isListening && interimTranscript && (
-                    <div style={{ fontSize: '0.78rem', color: 'var(--secondary)', marginTop: '0.25rem' }}>
-                      ⚡ <em>{interimTranscript}</em>
+                    <div style={{ fontSize: '0.78rem', color: 'var(--secondary)', marginTop: '0.25rem', fontFamily: 'var(--font-mono)' }}>
+                      <em>{interimTranscript}</em>
                     </div>
                   )}
                 </div>
 
-                {/* Action buttons */}
                 <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', width: '100%' }}>
                   <button type="button" onClick={() => { resetTranscript(); setAnswer(''); }}
                     className="btn btn-secondary"
                     style={{ width: 'auto', padding: '0.6rem 1.25rem', fontSize: '0.85rem' }}>
-                    🔄 Clear
+                    Clear
                   </button>
                   <button type="button"
                     onClick={() => handleSendAnswer(null, answer)}
-                    className="btn btn-primary"
+                    className="btn btn-seal"
                     disabled={!answer.trim() || submitting}
                     style={{ width: 'auto', padding: '0.6rem 1.75rem', fontSize: '0.85rem' }}>
                     {submitting ? 'Analysing…' : 'Submit Answer →'}
                   </button>
                 </div>
 
-                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                <div style={{ fontSize: '0.7rem', color: 'var(--ink-muted)' }}>
                   Press{' '}
-                  <kbd style={{ padding: '0.1rem 0.4rem', borderRadius: '3px',
-                    background: 'var(--bg-surface)', border: '1px solid var(--border-color)' }}>
+                  <kbd style={{ padding: '0.1rem 0.4rem', borderRadius: 'var(--radius-sm)',
+                    background: 'var(--bg-elevated)', border: '1px solid var(--border-color)', fontFamily: 'var(--font-mono)' }}>
                     Space
                   </kbd>{' '}
-                  to toggle recording when not typing
+                  to toggle recording when not typing ·{' '}
+                  <kbd style={{ padding: '0.1rem 0.4rem', borderRadius: 'var(--radius-sm)',
+                    background: 'var(--bg-elevated)', border: '1px solid var(--border-color)', fontFamily: 'var(--font-mono)' }}>
+                    Enter
+                  </kbd>{' '}
+                  to submit
                 </div>
               </div>
 
             ) : (
               /* TEXT MODE */
-              <form onSubmit={handleSendAnswer} style={{ display: 'flex', gap: '0.75rem' }}>
-                <textarea
-                  ref={textareaRef}
-                  className="form-input"
-                  rows={3}
-                  value={answer}
-                  onChange={(e) => setAnswer(e.target.value)}
-                  placeholder="Type your technical response here…"
-                  disabled={submitting}
-                  style={{ flex: 1, resize: 'vertical' }}
-                />
-                <button type="submit" className="btn btn-primary"
-                  disabled={submitting || !answer.trim()}
-                  style={{ width: 'auto', padding: '0 2rem', height: 'auto', alignSelf: 'stretch' }}>
-                  {submitting ? 'Analysing…' : 'Submit Answer →'}
-                </button>
+              <form onSubmit={handleSendAnswer} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                <div style={{ display: 'flex', gap: '0.75rem' }}>
+                  <textarea
+                    ref={textareaRef}
+                    className="form-input"
+                    rows={3}
+                    value={answer}
+                    onChange={(e) => setAnswer(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        if (answer.trim() && !submitting) {
+                          handleSendAnswer(e, answer);
+                        }
+                      }
+                    }}
+                    placeholder="Type your technical response here… (Press Enter to submit, Shift+Enter for new line)"
+                    disabled={submitting}
+                    style={{ flex: 1, resize: 'vertical' }}
+                  />
+                  <button type="submit" className="btn btn-seal"
+                    disabled={submitting || !answer.trim()}
+                    style={{ width: 'auto', padding: '0 2rem', height: 'auto', alignSelf: 'stretch' }}>
+                    {submitting ? 'Analysing…' : 'Submit Answer →'}
+                  </button>
+                </div>
+                <div style={{ fontSize: '0.72rem', color: 'var(--ink-muted)', textAlign: 'right' }}>
+                  Press <kbd style={{ padding: '0.1rem 0.35rem', borderRadius: 'var(--radius-sm)', background: 'var(--bg-elevated)', border: '1px solid var(--border-color)', fontFamily: 'var(--font-mono)' }}>Enter</kbd> to submit · <kbd style={{ padding: '0.1rem 0.35rem', borderRadius: 'var(--radius-sm)', background: 'var(--bg-elevated)', border: '1px solid var(--border-color)', fontFamily: 'var(--font-mono)' }}>Shift + Enter</kbd> for new line
+                </div>
               </form>
             )}
 
