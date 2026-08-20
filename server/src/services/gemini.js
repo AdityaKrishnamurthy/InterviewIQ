@@ -1,7 +1,7 @@
 const { generateCompletion } = require('./aiProvider');
 
 /**
- * Parses resume text using Groq LLM (llama-3.3-70b-versatile) and returns structured JSON
+ * Parses resume text using the configured Groq LLM and returns structured JSON
  */
 const parseResumeText = async (resumeText) => {
   const systemPrompt = `You are an expert technical resume parser and senior engineering hiring manager.
@@ -62,7 +62,12 @@ const fallbackResumeParsing = (resumeText) => {
   ];
 
   knownTech.forEach((tech) => {
-    const regex = new RegExp(`\\b${tech}\\b`, 'i');
+    const escaped = tech.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    // \b only asserts between word/non-word chars, so it never matches next to
+    // a trailing symbol like the "+" in C++. Use lookarounds on word chars instead.
+    const left = /\w/.test(tech[0]) ? '\\b' : '';
+    const right = /\w/.test(tech[tech.length - 1]) ? '\\b' : '(?!\\w)';
+    const regex = new RegExp(`${left}${escaped}${right}`, 'i');
     if (regex.test(text)) {
       skills.push(tech);
     }
