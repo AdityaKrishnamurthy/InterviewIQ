@@ -4,10 +4,11 @@ import { useAuth } from '../context/AuthContext';
 import useSpeech from '../hooks/useSpeech';
 import ThemeToggle from '../components/ThemeToggle';
 import Logo from '../components/Logo';
-import { Mic, Speaker, Cloud, Link as LinkIcon, Spinner } from '../components/Icon';
+import { Mic, Speaker, Cloud, Link as LinkIcon, Spinner, FileText, Briefcase } from '../components/Icon';
 import { API_BASE_URL } from '../config/api';
 
 const PERSONAS_LIST = [
+  { id: 'Custom',  mark: 'C',  title: 'Custom Persona',  color: 'var(--primary)',     tag: 'JD & Resume Matched',       desc: 'Hyper-tailored to your uploaded Job Description and Resume, testing exact role competencies.' },
   { id: 'Google',  mark: 'G',  title: 'Google Persona',  color: 'var(--primary)',     tag: 'Algorithms & Big-O',       desc: 'LeetCode, DSA, algorithmic complexity, and edge case rigor.' },
   { id: 'Amazon',  mark: 'A',  title: 'Amazon Persona',  color: 'var(--warning)',     tag: 'Leadership & STAR',         desc: 'Behavioral questions, STAR method, customer obsession & system scalability.' },
   { id: 'Startup', mark: 'S',  title: 'Startup Persona', color: 'var(--secondary)',   tag: 'Systems & Velocity',        desc: 'Architecture, project deep-dives, production trade-offs, and rapid delivery.' },
@@ -21,8 +22,10 @@ const getDiff = (d) => ({
 }[d] ?? { color: 'var(--warning)', label: 'Medium' });
 
 const InterviewSession = () => {
-  const [selectedPersona, setSelectedPersona] = useState('Google');
+  const [selectedPersona, setSelectedPersona] = useState('Custom');
   const [targetRole, setTargetRole]           = useState('Software Engineer');
+  const [profileResume, setProfileResume]     = useState(null);
+  const [profileJd, setProfileJd]             = useState(null);
   const [session, setSession]                 = useState(null);
   const [answer, setAnswer]                   = useState('');
   const [starting, setStarting]               = useState(false);
@@ -36,6 +39,36 @@ const InterviewSession = () => {
   const messagesEndRef   = useRef(null);
   const prevMsgCountRef  = useRef(0);
   const textareaRef      = useRef(null);
+
+  // Fetch active Resume and Job Description on mount
+  useEffect(() => {
+    if (!token) return;
+    fetch(`${API_BASE_URL}/api/resume/latest`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data?.resume) setProfileResume(data.resume);
+      })
+      .catch(() => {});
+
+    fetch(`${API_BASE_URL}/api/jd/latest`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data?.jd) {
+          setProfileJd(data.jd);
+          setSelectedPersona('Custom');
+          if (data.jd.parsedData?.roleTitle) {
+            setTargetRole(data.jd.parsedData.roleTitle);
+          } else if (data.jd.title) {
+            setTargetRole(data.jd.title);
+          }
+        }
+      })
+      .catch(() => {});
+  }, [token]);
 
   const {
     speak, stopSpeaking, isSpeaking,
@@ -208,6 +241,36 @@ const InterviewSession = () => {
               Select the persona for your interview. The interviewer adapts difficulty in real time
               from your answers.
             </p>
+
+            {/* Active Context Banner */}
+            <div className="paper" style={{ padding: '1rem 1.25rem', marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', flexWrap: 'wrap', fontSize: '0.86rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <FileText size={16} style={{ color: profileResume ? 'var(--success)' : 'var(--ink-muted)' }} />
+                  <span style={{ color: 'var(--ink-secondary)' }}>Resume:</span>
+                  <strong style={{ color: profileResume ? 'var(--ink)' : 'var(--ink-muted)' }}>
+                    {profileResume ? profileResume.filename : 'None (general questions)'}
+                  </strong>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <Briefcase size={16} style={{ color: profileJd ? 'var(--primary)' : 'var(--ink-muted)' }} />
+                  <span style={{ color: 'var(--ink-secondary)' }}>Job Description:</span>
+                  <strong style={{ color: profileJd ? 'var(--ink)' : 'var(--ink-muted)' }}>
+                    {profileJd ? (profileJd.title || profileJd.parsedData?.roleTitle || 'Loaded') : 'None'}
+                  </strong>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => navigate('/resume')}
+                className="btn btn-secondary"
+                style={{ width: 'auto', padding: '0.4rem 0.85rem', fontSize: '0.78rem' }}
+              >
+                Manage Profile &amp; JD ↗
+              </button>
+            </div>
 
             <div className="paper" style={{ padding: '1.75rem', marginBottom: '1.5rem' }}>
               <div className="form-group">

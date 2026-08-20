@@ -21,6 +21,11 @@ const PERSONAS = {
     description: 'Balanced technical interview covering CS fundamentals, coding, system design, and resume projects.',
     style: 'Encouraging, clear, structured technical evaluation.',
   },
+  Custom: {
+    name: 'Role & Profile Tailored Interviewer',
+    description: 'Custom interviewer tailored to your uploaded Job Description and Resume, specifically evaluating your qualifications for this exact position.',
+    style: 'Role-focused, rigorous, directly cross-examining candidate resume projects against the requirements and responsibilities in the Job Description.',
+  },
 };
 
 /**
@@ -40,9 +45,9 @@ const calculateNextDifficulty = (currentDifficulty, score) => {
 };
 
 /**
- * Generates initial greeting and first interview question tailored to persona & resume deep-dive
+ * Generates initial greeting and first interview question tailored to persona, resume deep-dive, and target JD
  */
-const generateInitialQuestion = async ({ persona, targetRole, resumeData }) => {
+const generateInitialQuestion = async ({ persona, targetRole, resumeData, jdData }) => {
   const personaInfo = PERSONAS[persona] || PERSONAS.General;
 
   const skillsText = resumeData?.skills?.join(', ') || 'General Software Engineering';
@@ -51,6 +56,14 @@ const generateInitialQuestion = async ({ persona, targetRole, resumeData }) => {
       ?.map((p) => `Project "${p.name}": ${p.description} (Tech: ${p.techStack?.join(', ') || 'N/A'})`)
       .join('\n') || 'No projects listed';
 
+  const jdContext = jdData ? `
+Target Job Description (JD) Requirements:
+- Position: ${jdData.roleTitle || targetRole}
+- Required Tech Stack & Skills: ${jdData.requiredSkills?.join(', ') || 'N/A'}
+- Key Responsibilities: ${jdData.responsibilities?.join('; ') || 'N/A'}
+- Experience Level: ${jdData.experienceLevel || 'N/A'}
+` : '';
+
   const systemPrompt = `You are a ${personaInfo.name} interviewing a candidate for a ${targetRole} position.
 Style: ${personaInfo.style}
 
@@ -58,12 +71,12 @@ Candidate Resume Profile:
 - Demonstrated Skills: ${skillsText}
 - Resume Projects for Deep Dive:
 ${projectsText}
-
+${jdContext}
 Task:
 Generate the opening turn of this technical interview.
-You MUST conduct a Resume Deep Dive:
+${jdData ? 'You MUST cross-reference the candidate\'s resume projects against the Target Job Description (JD) requirements, tailoring the initial deep-dive question to assess how the candidate\'s past projects match the JD\'s core technical demands.' : 'You MUST conduct a Resume Deep Dive on one of their projects.'}
 1. Provide a warm 1-sentence welcome for the ${targetRole} interview.
-2. Select one specific project or core skill from their resume and ask a deep-dive question about architecture, design trade-offs, or implementation choices (Difficulty: Medium).
+2. Select one specific project or core skill from their resume (aligning with the JD requirements if provided) and ask a deep-dive question about architecture, design trade-offs, or implementation choices (Difficulty: Medium).
 
 Return ONLY a JSON object:
 {
@@ -96,12 +109,13 @@ Return ONLY a JSON object:
 };
 
 /**
- * Evaluates candidate answer and generates adaptive follow-up question with Interview Memory
+ * Evaluates candidate answer and generates adaptive follow-up question with Interview Memory & JD Context
  */
 const evaluateAndGenerateFollowup = async ({
   persona,
   targetRole,
   resumeData,
+  jdData,
   currentDifficulty,
   previousQuestion,
   candidateAnswer,
@@ -119,6 +133,13 @@ const evaluateAndGenerateFollowup = async ({
       ? `\nInterview Memory (Candidate's Earlier Weak Points in Session):\n- ${weakMemory.join('\n- ')}\n`
       : '';
 
+  const jdContext = jdData ? `
+Target Job Description (JD) Requirements:
+- Position: ${jdData.roleTitle || targetRole}
+- Required Tech Stack & Skills: ${jdData.requiredSkills?.join(', ') || 'N/A'}
+- Key Responsibilities: ${jdData.responsibilities?.join('; ') || 'N/A'}
+` : '';
+
   const systemPrompt = `You are a ${personaInfo.name} interviewing a candidate for a ${targetRole} role.
 Current Difficulty: ${currentDifficulty}
 
@@ -131,14 +152,16 @@ Candidate Answer:
 Candidate Resume Context:
 Skills: ${resumeData?.skills?.join(', ') || 'N/A'}
 Projects: ${resumeData?.projects?.map((p) => p.name).join(', ') || 'N/A'}
+${jdContext}
 ${memoryContext}
 Tasks:
 1. Evaluate the candidate's answer on a 1-5 scale (1 = poor, 3 = average, 5 = exceptional).
-2. Write a 2-sentence feedback evaluation detailing technical strengths or gaps.
+2. Write a 2-sentence feedback evaluation detailing technical strengths or gaps (referencing JD requirements where appropriate).
 3. Generate the NEXT follow-up question adapting difficulty dynamically:
    - If score >= 4: Increase challenge (e.g. scaling, edge cases, failure recovery).
    - If score <= 2: Simplify or pivot to core fundamentals.
    - If score == 3: Explore deeper or move to a lateral technical topic.
+   - If a Job Description is provided, align questions to evaluate required competencies from the JD.
    - INTERVIEW MEMORY INSTRUCTION: If candidate struggled earlier in this session on a specific topic (see Interview Memory), occasionally circle back to re-test their understanding of that concept in a new context.
 
 Return ONLY raw JSON:

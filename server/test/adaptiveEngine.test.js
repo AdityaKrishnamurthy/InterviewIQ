@@ -33,8 +33,8 @@ describe('calculateNextDifficulty', () => {
 });
 
 describe('PERSONAS', () => {
-  it('defines all four company personas referenced by the client', () => {
-    expect(Object.keys(PERSONAS).sort()).toEqual(['Amazon', 'General', 'Google', 'Startup']);
+  it('defines all personas referenced by the client including Custom', () => {
+    expect(Object.keys(PERSONAS).sort()).toEqual(['Amazon', 'Custom', 'General', 'Google', 'Startup']);
   });
 
   it('gives every persona a name, description, and style', () => {
