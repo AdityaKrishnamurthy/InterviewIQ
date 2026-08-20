@@ -28,7 +28,7 @@ router.post('/start', authMiddleware, async (req, res) => {
 
     let resumeObj = null;
     if (resumeId) {
-      resumeObj = await resumeStore.findById(resumeId);
+      resumeObj = await resumeStore.findByIdAndUserId(resumeId, req.user.id);
     }
     if (!resumeObj) {
       resumeObj = await resumeStore.findLatestByUserId(req.user.id);
@@ -36,7 +36,7 @@ router.post('/start', authMiddleware, async (req, res) => {
 
     let jdObj = null;
     if (jdId) {
-      jdObj = await jdStore.findById(jdId);
+      jdObj = await jdStore.findByIdAndUserId(jdId, req.user.id);
     }
     if (!jdObj) {
       jdObj = await jdStore.findLatestByUserId(req.user.id);

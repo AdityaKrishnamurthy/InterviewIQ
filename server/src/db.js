@@ -145,6 +145,16 @@ const resumeStore = {
     return memoryResumes.get(id.toString()) || null;
   },
 
+  findByIdAndUserId: async (id, userId) => {
+    if (!id || !userId) return null;
+    if (isDbConnected()) {
+      return await Resume.findOne({ _id: id, userId });
+    }
+    const r = memoryResumes.get(id.toString());
+    if (r && r.userId.toString() === userId.toString()) return r;
+    return null;
+  },
+
   findLatestByUserId: async (userId) => {
     if (!userId) return null;
     if (isDbConnected()) {
@@ -222,6 +232,16 @@ const jdStore = {
       return await JobDescription.findById(id);
     }
     return memoryJobDescriptions.get(id.toString()) || null;
+  },
+
+  findByIdAndUserId: async (id, userId) => {
+    if (!id || !userId) return null;
+    if (isDbConnected()) {
+      return await JobDescription.findOne({ _id: id, userId });
+    }
+    const j = memoryJobDescriptions.get(id.toString());
+    if (j && j.userId.toString() === userId.toString()) return j;
+    return null;
   },
 
   findLatestByUserId: async (userId) => {

@@ -66,6 +66,11 @@ router.post(
       originalFilename = req.file.originalname;
       try {
         const fileBuffer = fs.readFileSync(req.file.path);
+        // fileFilter above only checks the client-supplied mimetype/extension,
+        // which is trivially spoofable — verify the actual file content too.
+        if (fileBuffer.subarray(0, 5).toString('latin1') !== '%PDF-') {
+          return res.status(400).json({ message: 'Uploaded file is not a valid PDF' });
+        }
         try {
           const pdfData = await pdfParse(fileBuffer);
           extractedText = pdfData.text || '';
