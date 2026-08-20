@@ -396,4 +396,23 @@ router.get('/', authMiddleware, async (req, res) => {
   }
 });
 
+// @route   DELETE /api/session/:id
+// @desc    Delete a session for user
+// @access  Private
+router.delete('/:id', authMiddleware, async (req, res) => {
+  try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ message: 'Invalid session ID' });
+    }
+    const deleted = await sessionStore.deleteByIdAndUserId(req.params.id, req.user.id);
+    if (!deleted) {
+      return res.status(404).json({ message: 'Session not found' });
+    }
+    res.json({ success: true, message: 'Session deleted successfully' });
+  } catch (err) {
+    console.error('Delete session error:', err.message);
+    res.status(500).json({ message: 'Server error deleting session' });
+  }
+});
+
 module.exports = router;

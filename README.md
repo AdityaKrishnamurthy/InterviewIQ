@@ -2,9 +2,6 @@
 
 > Upload your resume, pick a company persona, and get interviewed by an AI that adapts its next question to how you're actually doing.
 
-**Live demo:** https://interviewiq-yb5d.onrender.com
-*(hosted on Render's free tier — the backend sleeps after ~15 min idle, so the first request after a while can take 30–50s to wake up)*
-
 InterviewIQ isn't a static question bank. It reads your resume, deep-dives one of your real projects, adjusts difficulty question-by-question based on your answers, and — at the end — cross-checks what you *claimed* on your resume against what you actually *demonstrated*, producing a per-skill confidence report with a prioritized improvement roadmap.
 
 ## Features
@@ -124,6 +121,7 @@ The first server run downloads a MongoDB binary for `mongodb-memory-server`, so 
 | GET    | `/api/session/:id/report`  | Fetch the final report for a session            |
 | GET    | `/api/session/history`     | List the user's past sessions                   |
 | GET    | `/api/session/:id`         | Fetch a single session                          |
+| DELETE | `/api/session/:id`         | Delete a session (auth required)                |
 
 All routes above marked "auth required" expect `Authorization: Bearer <token>`.
 

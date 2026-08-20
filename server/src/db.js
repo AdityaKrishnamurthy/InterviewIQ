@@ -235,6 +235,21 @@ const sessionStore = {
     saveMemoryStore();
     return session;
   },
+
+  deleteByIdAndUserId: async (id, userId) => {
+    if (!id || !userId) return false;
+    if (isDbConnected()) {
+      const res = await Session.deleteOne({ _id: id, userId });
+      return res.deletedCount > 0;
+    }
+    const s = memorySessions.get(id.toString());
+    if (s && s.userId.toString() === userId.toString()) {
+      memorySessions.delete(id.toString());
+      saveMemoryStore();
+      return true;
+    }
+    return false;
+  },
 };
 
 module.exports = {
