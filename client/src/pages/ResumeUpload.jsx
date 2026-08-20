@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import ThemeToggle from '../components/ThemeToggle';
 import Logo from '../components/Logo';
+import { API_BASE_URL } from '../config/api';
 
 const ResumeUpload = () => {
   const [file, setFile] = useState(null);
@@ -19,7 +20,7 @@ const ResumeUpload = () => {
   useEffect(() => {
     const fetchLatestResume = async () => {
       try {
-        const response = await fetch('/api/resume/latest', {
+        const response = await fetch(`${API_BASE_URL}/api/resume/latest`, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -93,7 +94,7 @@ const ResumeUpload = () => {
     formData.append('resume', file);
 
     try {
-      const response = await fetch('/api/resume/upload', {
+      const response = await fetch(`${API_BASE_URL}/api/resume/upload`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,

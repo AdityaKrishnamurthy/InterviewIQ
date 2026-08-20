@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import useSpeech from '../hooks/useSpeech';
 import ThemeToggle from '../components/ThemeToggle';
 import Logo from '../components/Logo';
+import { API_BASE_URL } from '../config/api';
 
 const PERSONAS_LIST = [
   { id: 'Google',  title: 'Google Persona',  icon: '🔍', color: '#4285F4', tag: 'Algorithms & Big-O', desc: 'LeetCode, DSA, algorithmic complexity, and edge case rigor.' },
@@ -87,7 +88,7 @@ const InterviewSession = () => {
     setError('');
     setStarting(true);
     try {
-      const res  = await fetch('/api/session/start', {
+      const res  = await fetch(`${API_BASE_URL}/api/session/start`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ companyPersona: selectedPersona, targetRole }),
@@ -115,7 +116,7 @@ const InterviewSession = () => {
     if (voiceMode) stopListening();
 
     try {
-      const res  = await fetch('/api/session/answer', {
+      const res  = await fetch(`${API_BASE_URL}/api/session/answer`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ sessionId: session._id, answer: text }),
@@ -308,7 +309,7 @@ const InterviewSession = () => {
                     try {
                       setSubmitting(true);
                       stopListening(); stopSpeaking();
-                      await fetch(`/api/session/${session._id}/complete`, {
+                      await fetch(`${API_BASE_URL}/api/session/${session._id}/complete`, {
                         method: 'POST', headers: { Authorization: `Bearer ${token}` },
                       });
                       navigate(`/report/${session._id}`);

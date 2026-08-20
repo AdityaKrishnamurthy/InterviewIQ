@@ -5,6 +5,7 @@ import ScoreTrendChart from '../components/ScoreTrendChart';
 import SessionHistoryList from '../components/SessionHistoryList';
 import ThemeToggle from '../components/ThemeToggle';
 import Logo from '../components/Logo';
+import { API_BASE_URL } from '../config/api';
 
 const STAT_ICONS = ['📊', '✅', '⭐', '🏆'];
 
@@ -20,7 +21,7 @@ const Dashboard = () => {
   useEffect(() => {
     const fetchHistory = async () => {
       try {
-        const res = await fetch('/api/session/history', {
+        const res = await fetch(`${API_BASE_URL}/api/session/history`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         const data = await res.json();

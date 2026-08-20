@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import ThemeToggle from '../components/ThemeToggle';
 import Logo from '../components/Logo';
+import { API_BASE_URL } from '../config/api';
 
 const ScoreRing = ({ score }) => {
   const safeScore = typeof score === 'number' && !isNaN(score) ? Math.max(0, Math.min(100, Math.round(score))) : 0;
@@ -80,7 +81,7 @@ const FinalReport = () => {
         let id = sessionId;
         if (!id) {
           // fetch latest user session if no ID in URL
-          const resSessions = await fetch('/api/session', {
+          const resSessions = await fetch(`${API_BASE_URL}/api/session`, {
             headers: { Authorization: `Bearer ${token}` },
           });
           if (resSessions.ok) {
@@ -97,7 +98,7 @@ const FinalReport = () => {
           return;
         }
 
-        const response = await fetch(`/api/session/${id}/report`, {
+        const response = await fetch(`${API_BASE_URL}/api/session/${id}/report`, {
           headers: { Authorization: `Bearer ${token}` },
         });
 
