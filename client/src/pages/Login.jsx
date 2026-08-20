@@ -45,8 +45,9 @@ const Login = () => {
       <div className="auth-card">
         <div className="auth-header">
           <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1.25rem' }}>
-            <Logo size={36} to="/login" />
+            <Logo size={38} to="/login" />
           </div>
+          <div className="auth-docket-number">InterviewIQ · Sign In</div>
           <h1 className="auth-title">Welcome Back</h1>
           <p className="auth-subtitle">Sign in to continue your technical interview prep</p>
         </div>
@@ -87,7 +88,7 @@ const Login = () => {
           </div>
 
           <button type="submit" className="btn btn-primary" disabled={submitting}>
-            {submitting ? 'Signing in...' : 'Sign In'}
+            {submitting ? 'Signing in…' : 'Sign In'}
           </button>
         </form>
 

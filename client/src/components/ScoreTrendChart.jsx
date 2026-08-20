@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { TrendUp } from './Icon';
 
 const ScoreTrendChart = ({ data = [], width = 800, height = 300 }) => {
   const [hoveredIndex, setHoveredIndex] = useState(null);
@@ -71,15 +72,15 @@ const ScoreTrendChart = ({ data = [], width = 800, height = 300 }) => {
         alignItems: 'center',
         justifyContent: 'center',
         height: '200px',
-        color: 'var(--text-secondary)',
+        color: 'var(--ink-secondary)',
         fontSize: '0.95rem',
         textAlign: 'center',
         padding: '2rem',
       }}>
         <div>
-          <div style={{ fontSize: '2rem', marginBottom: '0.75rem', opacity: 0.5 }}>📈</div>
+          <TrendUp size={28} style={{ color: 'var(--ink-muted)', marginBottom: '0.75rem' }} />
           <p>Complete more sessions to see your progress trend</p>
-          <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.5rem' }}>
+          <p style={{ fontSize: '0.8rem', color: 'var(--ink-muted)', marginTop: '0.5rem' }}>
             At least 2 completed sessions are needed for the chart
           </p>
         </div>
@@ -99,16 +100,9 @@ const ScoreTrendChart = ({ data = [], width = 800, height = 300 }) => {
       >
         <defs>
           <linearGradient id="chartGradient" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="var(--primary)" stopOpacity="0.3" />
-            <stop offset="100%" stopColor="var(--primary)" stopOpacity="0.02" />
+            <stop offset="0%" stopColor="var(--primary)" stopOpacity="0.16" />
+            <stop offset="100%" stopColor="var(--primary)" stopOpacity="0.01" />
           </linearGradient>
-          <filter id="glow">
-            <feGaussianBlur stdDeviation="3" result="coloredBlur" />
-            <feMerge>
-              <feMergeNode in="coloredBlur" />
-              <feMergeNode in="SourceGraphic" />
-            </feMerge>
-          </filter>
         </defs>
 
         {/* Y-axis gridlines */}
@@ -130,7 +124,7 @@ const ScoreTrendChart = ({ data = [], width = 800, height = 300 }) => {
                 x={padding.left - 12}
                 y={y + 4}
                 textAnchor="end"
-                fill="var(--text-muted)"
+                fill="var(--ink-muted)"
                 fontSize="11"
                 fontFamily="var(--font-sans)"
               >
@@ -150,7 +144,7 @@ const ScoreTrendChart = ({ data = [], width = 800, height = 300 }) => {
               x={p.x}
               y={padding.top + chartH + 25}
               textAnchor="middle"
-              fill="var(--text-muted)"
+              fill="var(--ink-muted)"
               fontSize="11"
               fontFamily="var(--font-sans)"
             >
@@ -171,10 +165,9 @@ const ScoreTrendChart = ({ data = [], width = 800, height = 300 }) => {
           d={catmullRomPath}
           fill="none"
           stroke="var(--primary)"
-          strokeWidth="2.5"
+          strokeWidth="2"
           strokeLinecap="round"
           strokeLinejoin="round"
-          filter="url(#glow)"
           className="chart-line-path"
         />
 
@@ -238,7 +231,7 @@ const ScoreTrendChart = ({ data = [], width = 800, height = 300 }) => {
                 strokeWidth="1"
                 filter="drop-shadow(0 4px 8px rgba(0,0,0,0.3))"
               />
-              <text x={tx + 12} y={ty + 20} fill="var(--text-primary)" fontSize="12" fontWeight="600" fontFamily="var(--font-sans)">
+              <text x={tx + 12} y={ty + 20} fill="var(--ink)" fontSize="12" fontWeight="600" fontFamily="var(--font-sans)">
                 {formatDate(p.date)} — {p.persona}
               </text>
               <text x={tx + 12} y={ty + 42} fill={getScoreColor(p.score)} fontSize="14" fontWeight="700" fontFamily="var(--font-sans)">

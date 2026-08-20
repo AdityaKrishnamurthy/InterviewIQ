@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import ThemeToggle from '../components/ThemeToggle';
 import Logo from '../components/Logo';
+import { Upload, FileText } from '../components/Icon';
 import { API_BASE_URL } from '../config/api';
 
 const ResumeUpload = () => {
@@ -16,14 +17,11 @@ const ResumeUpload = () => {
   const { token, logout } = useAuth();
   const navigate = useNavigate();
 
-  // Load existing resume if present
   useEffect(() => {
     const fetchLatestResume = async () => {
       try {
         const response = await fetch(`${API_BASE_URL}/api/resume/latest`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+          headers: { Authorization: `Bearer ${token}` },
         });
         if (response.ok) {
           const data = await response.json();
@@ -56,8 +54,7 @@ const ResumeUpload = () => {
     e.stopPropagation();
     setDragActive(false);
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      const selected = e.dataTransfer.files[0];
-      validateAndSetFile(selected);
+      validateAndSetFile(e.dataTransfer.files[0]);
     }
   };
 
@@ -96,9 +93,7 @@ const ResumeUpload = () => {
     try {
       const response = await fetch(`${API_BASE_URL}/api/resume/upload`, {
         method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { Authorization: `Bearer ${token}` },
         body: formData,
       });
 
@@ -133,30 +128,20 @@ const ResumeUpload = () => {
       </header>
 
       <main className="dashboard-container">
-        <div style={{ marginBottom: '2rem' }}>
-          <h1 style={{ fontSize: '2rem', fontWeight: 700, marginBottom: '0.5rem' }}>
-            Resume Deep Dive Setup
-          </h1>
-          <p style={{ color: 'var(--text-secondary)' }}>
-            Upload your technical resume. InterviewIQ will extract your projects and skills to tailor your custom adaptive interview session.
-          </p>
+        <div className="docket-heading">
+          <h1 style={{ fontSize: '1.6rem' }}>Upload Resume</h1>
         </div>
+        <p style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem', maxWidth: '65ch' }}>
+          Upload your resume so InterviewIQ can extract your projects and skills to
+          build a personalised interview — one project gets a full deep dive.
+        </p>
 
         {error && <div className="alert-error">{error}</div>}
 
-        {/* Upload Box */}
+        {/* Dropzone */}
         <div
-          className="auth-card"
-          style={{
-            maxWidth: '100%',
-            marginBottom: '2rem',
-            border: dragActive ? '2px dashed var(--primary)' : '1px dashed var(--border-color)',
-            backgroundColor: dragActive ? 'rgba(108, 99, 255, 0.05)' : 'var(--bg-surface)',
-            textAlign: 'center',
-            cursor: 'pointer',
-            padding: '3rem 2rem',
-            transition: 'all 0.2s ease',
-          }}
+          className={`evidence-dropzone ${dragActive ? 'drag-active' : ''}`}
+          style={{ marginBottom: '2rem' }}
           onDragEnter={handleDrag}
           onDragLeave={handleDrag}
           onDragOver={handleDrag}
@@ -171,27 +156,12 @@ const ResumeUpload = () => {
           />
 
           <label htmlFor="file-upload" style={{ cursor: 'pointer', display: 'block' }}>
-            <div
-              style={{
-                width: '64px',
-                height: '64px',
-                margin: '0 auto 1rem auto',
-                borderRadius: '50%',
-                backgroundColor: 'rgba(108, 99, 255, 0.1)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: 'var(--primary)',
-                fontSize: '1.75rem',
-              }}
-            >
-              📄
-            </div>
+            <Upload size={28} style={{ color: 'var(--primary)', marginBottom: '1rem' }} />
 
-            <h3 style={{ fontSize: '1.2rem', marginBottom: '0.5rem' }}>
+            <h3 style={{ fontSize: '1.1rem', marginBottom: '0.4rem', color: 'var(--ink)', fontFamily: 'var(--font-sans)', fontWeight: 700 }}>
               {file ? file.name : 'Drag & drop your PDF resume here'}
             </h3>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '1.5rem' }}>
+            <p style={{ color: 'var(--ink-secondary)', fontSize: '0.88rem', marginBottom: '1.5rem' }}>
               {file ? `${(file.size / 1024 / 1024).toFixed(2)} MB PDF selected` : 'or click to browse from your device (PDF up to 10MB)'}
             </p>
           </label>
@@ -203,52 +173,47 @@ const ResumeUpload = () => {
               disabled={uploading}
               style={{ maxWidth: '240px', margin: '0 auto' }}
             >
-              {uploading ? 'Parsing AI Resume...' : 'Analyze Resume'}
+              {uploading ? 'Analyzing…' : 'Upload Resume'}
             </button>
           )}
         </div>
 
         {/* Parsed Resume Preview */}
         {loadingExisting ? (
-          <p style={{ color: 'var(--text-secondary)', textAlign: 'center' }}>Loading resume details...</p>
+          <p style={{ color: 'var(--text-secondary)', textAlign: 'center' }}>Loading your resume…</p>
         ) : parsedResume ? (
-          <div className="auth-card" style={{ maxWidth: '100%' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-              <div>
-                <h2 style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                  Extracted Resume Intelligence
-                </h2>
-                <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-                  Source: <strong>{parsedResume.filename}</strong>
-                </p>
+          <div className="paper" style={{ padding: '1.75rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <FileText size={20} style={{ color: 'var(--ink-muted)' }} />
+                <div>
+                  <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--ink)' }}>
+                    Resume Ready
+                  </h2>
+                  <p style={{ color: 'var(--ink-secondary)', fontSize: '0.85rem' }}>
+                    {parsedResume.filename}
+                  </p>
+                </div>
               </div>
               <button
                 onClick={() => navigate('/interview')}
-                className="btn btn-primary"
-                style={{ width: 'auto', padding: '0.75rem 1.75rem' }}
+                className="btn btn-seal"
+                style={{ width: 'auto', padding: '0.7rem 1.5rem' }}
               >
-                Start Adaptive Interview →
+                Start Interview →
               </button>
             </div>
 
             {/* Skills */}
             <div style={{ marginBottom: '1.5rem' }}>
-              <h3 style={{ fontSize: '1rem', color: 'var(--secondary)', marginBottom: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                Extracted Skills
+              <h3 style={{ fontSize: '0.8rem', color: 'var(--ink-secondary)', marginBottom: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', fontFamily: 'var(--font-sans)', fontWeight: 700 }}>
+                Skills
               </h3>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
                 {parsedResume.parsedData?.skills?.map((skill, idx) => (
                   <span
                     key={idx}
-                    style={{
-                      background: 'rgba(0, 212, 170, 0.1)',
-                      border: '1px solid rgba(0, 212, 170, 0.3)',
-                      color: 'var(--secondary)',
-                      padding: '0.35rem 0.85rem',
-                      borderRadius: '20px',
-                      fontSize: '0.85rem',
-                      fontWeight: 500,
-                    }}
+                    className="exhibit-tag"
                   >
                     {skill}
                   </span>
@@ -258,37 +223,36 @@ const ResumeUpload = () => {
 
             {/* Projects */}
             <div>
-              <h3 style={{ fontSize: '1rem', color: 'var(--primary)', marginBottom: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                Extracted Projects for Deep-Dive
+              <h3 style={{ fontSize: '0.8rem', color: 'var(--ink-secondary)', marginBottom: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', fontFamily: 'var(--font-sans)', fontWeight: 700 }}>
+                Projects for Deep Dive
               </h3>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)' }}>
                 {parsedResume.parsedData?.projects?.map((proj, idx) => (
                   <div
                     key={idx}
                     style={{
-                      background: 'var(--bg-main)',
-                      border: '1px solid var(--border-color)',
-                      borderRadius: 'var(--radius-md)',
-                      padding: '1rem',
+                      borderBottom: idx < parsedResume.parsedData.projects.length - 1 ? '1px solid var(--border-color)' : 'none',
+                      padding: '1rem 1.1rem',
                     }}
                   >
-                    <h4 style={{ fontSize: '1.1rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.4rem' }}>
+                    <h4 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--ink)', marginBottom: '0.35rem' }}>
                       {proj.name}
                     </h4>
-                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginBottom: '0.75rem' }}>
+                    <p style={{ color: 'var(--ink-secondary)', fontSize: '0.9rem', marginBottom: '0.6rem' }}>
                       {proj.description}
                     </p>
                     {proj.techStack && proj.techStack.length > 0 && (
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
                         {proj.techStack.map((tech, tIdx) => (
                           <span
                             key={tIdx}
                             style={{
-                              background: 'var(--bg-surface)',
-                              color: 'var(--text-muted)',
-                              fontSize: '0.75rem',
-                              padding: '0.15rem 0.5rem',
-                              borderRadius: '4px',
+                              color: 'var(--ink-muted)',
+                              fontFamily: 'var(--font-mono)',
+                              fontSize: '0.72rem',
+                              padding: '0.1rem 0.4rem',
+                              border: '1px solid var(--border-color)',
+                              borderRadius: 'var(--radius-sm)',
                             }}
                           >
                             {tech}
