@@ -115,4 +115,5 @@ const fallbackResumeParsing = (resumeText) => {
 
 module.exports = {
   parseResumeText,
+  fallbackResumeParsing,
 };

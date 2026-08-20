@@ -160,4 +160,5 @@ const fallbackReport = ({ claimedSkills, qaPairs }) => {
 
 module.exports = {
   generateTruthfulnessAndReport,
+  fallbackReport,
 };
